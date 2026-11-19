@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Asfalto Rush</title>
+  <!-- Fonte pixel (opcional: se offline, usa fallback monoespaçado) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="game-container"></div>
+  <div id="boot-error"></div>
+  <noscript>Ative o JavaScript para jogar Asfalto Rush.</noscript>
+
+  <!--
+    Phaser 3: tenta a cópia LOCAL (lib/phaser.min.js) e, se não existir,
+    usa a CDN. Para jogar offline, baixe phaser.min.js (v3.80.x) para /lib.
+  -->
+  <script>
+    (function () {
+      function loadMain() {
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = 'src/main.js';
+        document.body.appendChild(s);
+      }
+      function loadCdn() {
+        var c = document.createElement('script');
+        c.src = 'https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js';
+        c.onload = loadMain;
+        c.onerror = function () {
+          var e = document.getElementById('boot-error');
+          e.textContent = 'Falha ao carregar o Phaser 3 (sem lib/phaser.min.js e sem internet).';
+          e.style.display = 'block';
+        };
+        document.head.appendChild(c);
+      }
+      var local = document.createElement('script');
+      local.src = 'lib/phaser.min.js';
+      local.onload = function () { window.Phaser ? loadMain() : loadCdn(); };
+      local.onerror = loadCdn;
+      document.head.appendChild(local);
+    })();
+  </script>
+</body>
+</html>
