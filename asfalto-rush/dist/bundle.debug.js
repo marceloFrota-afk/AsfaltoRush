@@ -1,0 +1,5052 @@
+'use strict';
+const __m = {};
+
+// ---- src/config/gameConfig.js ----
+__m['src/config/gameConfig.js'] = (function () {
+// =============================================================
+// gameConfig.js — constantes globais (resolução, layout, cores,
+// chaves de armazenamento, fontes, profundidades de desenho).
+// Valores de BALANCEAMENTO ficam em balance.js.
+// =============================================================
+
+const GAME_TITLE = 'ASFALTO RUSH';
+const GAME_VERSION = '1.0.0';
+
+// Resolução lógica (pixel art). O Phaser escala com FIT mantendo proporção.
+const GAME_WIDTH = 640;
+const GAME_HEIGHT = 360;
+
+// Cada "pixel de arte" vira PX x PX pixels de tela nas texturas geradas.
+const ART_PX = 2;
+
+// Geometria da rodovia (em pixels de tela)
+const ROAD = {
+  X: 160,              // borda esquerda do asfalto
+  WIDTH: 320,          // largura do asfalto
+  LANES: 5,            // número de faixas
+  SHOULDER: 10,        // acostamento (cascalho) de cada lado
+  EDGE_MARGIN: 4       // folga entre caminhão e a linha de borda
+};
+ROAD.LANE_WIDTH = ROAD.WIDTH / ROAD.LANES;   // 64
+ROAD.RIGHT = ROAD.X + ROAD.WIDTH;             // 480
+
+const laneCenter = (lane) => ROAD.X + ROAD.LANE_WIDTH * (lane + 0.5);
+
+// Linha onde novas fileiras de obstáculos nascem (acima da tela)
+const SPAWN_Y = -70;
+// Abaixo disso objetos são reciclados
+const DESPAWN_Y = GAME_HEIGHT + 90;
+
+const PIXELS_PER_METER = 10;
+
+// Ordem de desenho
+const DEPTH = {
+  GRASS: 0,
+  ROAD: 1,
+  ROAD_MARKS: 2,
+  DECAL: 3,
+  HOLE: 4,
+  SHADOW: 5,
+  OBSTACLE: 6,
+  PICKUP: 7,
+  TRUCK_SHADOW: 8,
+  TRAIL: 9,
+  TRUCK: 10,
+  TRUCK_AIR: 20,
+  TREE: 22,
+  SPEEDLINES: 25,
+  PARTICLES: 30,
+  FLOATING_TEXT: 35,
+  THREAT: 40,
+  TOUCH_UI: 60
+};
+
+const FONT = {
+  FAMILY: '"Press Start 2P", "Courier New", monospace',
+  SMALL: '8px',
+  MEDIUM: '16px',
+  LARGE: '24px',
+  HUGE: '32px'
+};
+
+// Paleta da interface (pixel art moderna)
+const UI_COLORS = {
+  BG: 0x14121f,
+  PANEL: 0x1f1d33,
+  PANEL_BORDER: 0xf7c548,
+  TEXT: '#f4f4f4',
+  TEXT_DIM: '#9aa0b8',
+  ACCENT: '#f7c548',
+  ACCENT_HEX: 0xf7c548,
+  DANGER: '#ff5a5a',
+  GOOD: '#6ee7a0',
+  INFO: '#6cc7ff',
+  COMBO: ['#f4f4f4', '#9be7ff', '#6ee7a0', '#f7c548', '#ff9a3c', '#ff5a8a']
+};
+
+// Chaves usadas no localStorage
+const STORAGE_KEYS = {
+  SETTINGS: 'asfaltoRush.settings.v1',
+  RECORDS: 'asfaltoRush.records.v1',
+  WALLET: 'asfaltoRush.wallet.v1'
+};
+
+// Estados globais do jogo (registrados no registry do Phaser)
+const GAME_STATE = {
+  BOOT: 'BOOT',
+  MENU: 'MENU',
+  MODE_SELECT: 'MODE_SELECT',
+  PLAYING: 'PLAYING',
+  PAUSED: 'PAUSED',
+  GAME_OVER: 'GAME_OVER'
+};
+
+const SCENES = {
+  BOOT: 'BootScene',
+  MENU: 'MenuScene',
+  MODE_SELECT: 'ModeSelectScene',
+  HOW_TO: 'HowToPlayScene',
+  SETTINGS: 'SettingsScene',
+  CREDITS: 'CreditsScene',
+  GAME: 'GameScene',
+  HUD: 'HUDScene',
+  PAUSE: 'PauseScene',
+  GAME_OVER: 'GameOverScene'
+};
+
+// Mapeamento padrão de teclas. Nomes = Phaser.Input.Keyboard.KeyCodes.
+// Pode ser sobrescrito por settings.keyBindings (remapeamento futuro).
+const DEFAULT_KEY_BINDINGS = {
+  left: ['A', 'LEFT'],
+  right: ['D', 'RIGHT'],
+  up: ['W', 'UP'],
+  down: ['S', 'DOWN'],
+  jump: ['SPACE'],
+  dash: ['SHIFT'],
+  pause: ['ESC', 'P'],
+  confirm: ['ENTER', 'SPACE'],
+  back: ['ESC', 'BACKSPACE']
+};
+
+// Mapeamento padrão de gamepad (layout "standard" do navegador).
+// 0=A/Cruz 1=B/Círculo 2=X/Quadrado 3=Y/Triângulo 4=LB/L1 5=RB/R1
+// 6=LT/L2 7=RT/R2 9=Start/Options 12..15 = D-pad
+const DEFAULT_PAD_BINDINGS = {
+  jump: [0],
+  dash: [5, 2, 7],
+  pause: [9],
+  confirm: [0, 9],
+  back: [1],
+  up: [12],
+  down: [13],
+  left: [14],
+  right: [15],
+  stickDeadzone: 0.25
+};
+
+return { GAME_TITLE, GAME_VERSION, GAME_WIDTH, GAME_HEIGHT, ART_PX, ROAD, laneCenter, SPAWN_Y, DESPAWN_Y, PIXELS_PER_METER, DEPTH, FONT, UI_COLORS, STORAGE_KEYS, GAME_STATE, SCENES, DEFAULT_KEY_BINDINGS, DEFAULT_PAD_BINDINGS };
+})();
+
+// ---- src/config/assets.js ----
+__m['src/config/assets.js'] = (function () {
+// =============================================================
+// assets.js — chaves de textura e manifesto de assets externos.
+//
+// O jogo SEMPRE funciona sem arquivos: BootScene gera pixel art
+// procedural para qualquer chave que não tenha sido carregada.
+//
+// Para trocar por sprites definitivos:
+//   1. Coloque o PNG em assets/sprites/
+//   2. Adicione uma entrada em EXTERNAL_ASSETS com a MESMA key
+//   3. Respeite o tamanho de frame e a ordem dos frames indicados
+// Nenhuma mecânica precisa ser alterada.
+// =============================================================
+
+const TEX = {
+  TRUCK: 'truck',            // spritesheet 28x60, frames: 0-1 dirigindo, 2 pulo, 3-4 dash, 5 batida, 6 destruído
+  TRUCK_SHADOW: 'truck_shadow',
+  SHIELD: 'shield_bubble',
+  HOLE_S: 'hole_s', HOLE_M: 'hole_m', HOLE_L: 'hole_l',
+  CONE: 'cone', TIRE: 'tire', ROCK: 'rock', BOX: 'box', SIGN: 'sign',
+  BARRIER: 'barrier', LOG: 'log', FALLEN_TREE: 'fallen_tree',
+  CAPYBARA: 'capybara',      // spritesheet 2 frames (andando)
+  TREE_ROUND: 'tree_round', TREE_PINE: 'tree_pine', BUSH: 'bush',
+  FLOWERS: 'flowers', TUFT: 'tuft', STONE: 'stone', KM_POST: 'km_post',
+  ASPHALT: 'asphalt', GRASS: 'grass', GRAVEL: 'gravel',
+  LANE_DASH: 'lane_dash', EDGE_LINE: 'edge_line',
+  GEAR: 'gear',              // spritesheet 2 frames (girando)
+  CLOCK_S: 'clock_s', CLOCK_L: 'clock_l',
+  PU_SHIELD: 'pu_shield', PU_BOOST: 'pu_boost', PU_REPAIR: 'pu_repair',
+  PU_DASH: 'pu_dash', PU_MAGNET: 'pu_magnet',
+  PX: 'px', SPARK: 'spark', SMOKE: 'smoke', SPEEDLINE: 'speedline',
+  STORM_EDGE: 'storm_edge', RAIN: 'rain',
+  HEART: 'heart', HEART_EMPTY: 'heart_empty',
+  ICON_DASH: 'icon_dash', ICON_JUMP: 'icon_jump',
+  TOUCH_BTN: 'touch_btn'
+};
+
+// Texturas que recebem variante de ALTO CONTRASTE (sufixo _hc)
+const HIGH_CONTRAST_KEYS = [
+  'hole_s', 'hole_m', 'hole_l', 'cone', 'tire', 'rock', 'box', 'sign',
+  'barrier', 'log', 'fallen_tree', 'capybara'
+];
+
+// Manifesto de arquivos opcionais. Deixe vazio para usar só placeholders.
+// Exemplos (descomente quando os arquivos existirem):
+const EXTERNAL_ASSETS = [
+  // { type: 'spritesheet', key: 'truck', url: 'assets/sprites/truck.png', frameWidth: 28, frameHeight: 60 },
+  // { type: 'image', key: 'cone', url: 'assets/sprites/cone.png' },
+  // { type: 'spritesheet', key: 'capybara', url: 'assets/sprites/capybara.png', frameWidth: 32, frameHeight: 20 },
+  // { type: 'image', key: 'asphalt', url: 'assets/sprites/asphalt.png' },
+];
+
+return { TEX, HIGH_CONTRAST_KEYS, EXTERNAL_ASSETS };
+})();
+
+// ---- src/art/ArtCanvas.js ----
+__m['src/art/ArtCanvas.js'] = (function () {
+// =============================================================
+// ArtCanvas.js — grade de pixels independente do Phaser.
+// Usada para desenhar a pixel art ORIGINAL do jogo em código
+// (placeholders "bonitos"). Pode ser testada no Node.
+// =============================================================
+
+function seededRandom(seed = 1) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+class ArtCanvas {
+  constructor(w, h) {
+    this.w = w;
+    this.h = h;
+    this.data = new Array(w * h).fill(null);
+  }
+
+  inBounds(x, y) { return x >= 0 && y >= 0 && x < this.w && y < this.h; }
+
+  get(x, y) { return this.inBounds(x, y) ? this.data[y * this.w + x] : null; }
+
+  px(x, y, c) {
+    x = Math.round(x); y = Math.round(y);
+    if (this.inBounds(x, y)) this.data[y * this.w + x] = c;
+    return this;
+  }
+
+  rect(x, y, w, h, c) {
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.px(x + i, y + j, c);
+    return this;
+  }
+
+  // Elipse preenchida; colorFn(nx, ny) recebe coordenadas normalizadas (-1..1)
+  ellipse(cx, cy, rx, ry, colorOrFn) {
+    for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
+      for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+        const nx = (x + 0.5 - cx) / rx;
+        const ny = (y + 0.5 - cy) / ry;
+        const d = nx * nx + ny * ny;
+        if (d <= 1) {
+          const c = typeof colorOrFn === 'function' ? colorOrFn(nx, ny, d) : colorOrFn;
+          if (c) this.px(x, y, c);
+        }
+      }
+    }
+    return this;
+  }
+
+  // Desenha um mapa de strings. palette: { char: '#rrggbb' }, '.' = transparente
+  map(rows, palette, ox = 0, oy = 0) {
+    rows.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) {
+        const ch = row[x];
+        if (ch === '.' || ch === ' ') continue;
+        const c = palette[ch];
+        if (c) this.px(ox + x, oy + y, c);
+      }
+    });
+    return this;
+  }
+
+  // Contorno de 1 px em volta dos pixels opacos (borda externa)
+  outline(color, onlyTransparent = true) {
+    const copy = this.data.slice();
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        if (onlyTransparent && copy[y * this.w + x]) continue;
+        const n = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
+          const xx = x + dx, yy = y + dy;
+          return xx >= 0 && yy >= 0 && xx < this.w && yy < this.h && copy[yy * this.w + xx];
+        });
+        if (n) this.data[y * this.w + x] = color;
+      }
+    }
+    return this;
+  }
+
+  // Retorna nova grade com margem extra
+  padded(p) {
+    const out = new ArtCanvas(this.w + p * 2, this.h + p * 2);
+    for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) {
+      out.data[(y + p) * out.w + (x + p)] = this.data[y * this.w + x];
+    }
+    return out;
+  }
+
+  clone() {
+    const c = new ArtCanvas(this.w, this.h);
+    c.data = this.data.slice();
+    return c;
+  }
+
+  // Troca cores via função (para variantes: batida, destruído, skins)
+  recolor(fn) {
+    for (let i = 0; i < this.data.length; i++) {
+      if (this.data[i]) this.data[i] = fn(this.data[i]);
+    }
+    return this;
+  }
+
+  countOpaque() { return this.data.reduce((n, c) => n + (c ? 1 : 0), 0); }
+}
+
+// Utilitários de cor
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
+function shade(hex, f) {
+  if (!hex || !hex.startsWith('#')) return hex;
+  const [r, g, b] = hexToRgb(hex).map((v) => Math.max(0, Math.min(255, Math.round(v * f))));
+  return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+}
+
+return { seededRandom, ArtCanvas, hexToRgb, shade };
+})();
+
+// ---- src/art/sprites.js ----
+__m['src/art/sprites.js'] = (function () {
+// =============================================================
+// sprites.js — PIXEL ART ORIGINAL do Asfalto Rush, desenhada em
+// código (mapas de caracteres + formas procedurais).
+// Cada função retorna { frames: ArtCanvas[] }.
+// Substituível por PNGs via config/assets.js.
+// =============================================================
+const { ArtCanvas, seededRandom, shade } = __m['src/art/ArtCanvas.js'];
+
+const K = '#1b1b2f'; // contorno padrão
+
+// ---------------------------------------------------------------
+// CAMINHÃO (vista de cima, frente para cima) 14x30
+// ---------------------------------------------------------------
+const TRUCK_PALETTE = {
+  k: K,
+  r: '#e4343f', R: '#9e2335', h: '#ff7a6b',
+  w: '#2c7fb8', W: '#9be7ff',
+  y: '#ffd93d',
+  c: '#e8ecf2', C: '#a7b2c4',
+  g: '#5b6578',
+  t: '#20222e', T: '#4a4f63',
+  o: '#ff9a3c', O: '#fff275'
+};
+
+const TRUCK_BODY = [
+  '..kkkkkkkkkk..',
+  '.kykrrrrrrkyk.',
+  '.krhhhhhhhhrk.',
+  'tkrwwwwwwwwrkt',
+  'tkrwWWwwwwwrkt',
+  'tkrwwwwwwwwrkt',
+  'gkrrrrrrrrrrkg',
+  '.kRrrrrrrrrRk.',
+  '.kRRRRRRRRRRk.',
+  '..kkkkkkkkkk..',
+  '....kggggk....',
+  '.kkkkkkkkkkkk.',
+  '.kcccccccccck.',
+  'tkCCCCCCCCCCkt',
+  'tkcccccccccckt',
+  '.kccccrrcccck.',
+  '.kcccrrrrccck.',
+  '.kccrrccrrcck.',
+  '.kcrrccccrrck.',
+  '.kCCCCCCCCCCk.',
+  '.kcccccccccck.',
+  'tkCCCCCCCCCCkt',
+  'tkcccccccccckt',
+  'tkCCCCCCCCCCkt',
+  '.kcccccccccck.',
+  '.kkkkkkkkkkkk.'
+];
+const FLAME_A = ['....oOOOOo....', '.....oOOo.....', '......oo......', '..............'];
+const FLAME_B = ['....oOOOOo....', '....oOOOOo....', '.....oOOo.....', '......oo......'];
+
+function truckFrame(pal, { wheelPhase = 0, flame = null } = {}) {
+  const a = new ArtCanvas(14, 30);
+  const rows = TRUCK_BODY.map((row, y) =>
+    row.replace(/t/g, ((y + wheelPhase) % 2 === 0) ? 't' : 'T'));
+  a.map(rows, pal, 0, 0);
+  if (flame) a.map(flame, pal, 0, 26);
+  return a;
+}
+
+function drawTruck(skinPalette = {}) {
+  const pal = { ...TRUCK_PALETTE, ...skinPalette };
+  const driveA = truckFrame(pal, { wheelPhase: 0 });
+  const driveB = truckFrame(pal, { wheelPhase: 1 });
+  const jump = truckFrame({ ...pal, y: '#ffffff', h: shade(pal.h, 1.15) }, { wheelPhase: 0 });
+  const dashA = truckFrame(pal, { wheelPhase: 0, flame: FLAME_A });
+  const dashB = truckFrame(pal, { wheelPhase: 1, flame: FLAME_B });
+  const hit = driveA.clone().recolor((c) => (c === K ? '#ff4d4d' : '#ffffff'));
+  const wreck = driveA.clone().recolor((c) => {
+    if (c === K) return '#0d0d14';
+    if (c === pal.w || c === pal.W) return '#1c1c24';
+    return shade(c, 0.38);
+  });
+  // rachaduras no destruído
+  [[4, 14], [5, 15], [6, 15], [7, 16], [9, 19], [8, 20], [3, 6], [10, 4]].forEach(([x, y]) => wreck.px(x, y, '#0d0d14'));
+  return { frames: [driveA, driveB, jump, dashA, dashB, hit, wreck] };
+}
+
+function drawTruckShadow() {
+  const a = new ArtCanvas(16, 28);
+  a.ellipse(8, 14, 7.5, 13.5, 'rgba(0,0,0,0.38)');
+  return { frames: [a] };
+}
+
+function drawShieldBubble() {
+  const a = new ArtCanvas(22, 36);
+  a.ellipse(11, 18, 10.5, 17.5, (nx, ny, d) => {
+    if (d > 0.78) return 'rgba(108,199,255,0.85)';
+    if (nx < -0.3 && ny < -0.4 && d > 0.5) return 'rgba(220,245,255,0.55)';
+    return 'rgba(108,199,255,0.16)';
+  });
+  return { frames: [a] };
+}
+
+// ---------------------------------------------------------------
+// BURACOS (procedurais)
+// ---------------------------------------------------------------
+function hole(w, h, seed) {
+  const rnd = seededRandom(seed);
+  const a = new ArtCanvas(w, h);
+  const cx = w / 2, cy = h / 2;
+  // borda irregular (asfalto quebrado)
+  a.ellipse(cx, cy, w / 2, h / 2, (nx, ny, d) => {
+    if (d > 0.72) return rnd() < 0.75 ? '#4b4f5e' : null;
+    if (d > 0.5) return '#15151d';
+    return ny < -0.1 ? '#0a0a10' : '#1d1b24';
+  });
+  // lascas / rachaduras
+  for (let i = 0; i < 4; i++) {
+    const side = rnd() < 0.5 ? -1 : 1;
+    a.px(Math.round(cx + side * (w / 2 - 1)), Math.round(cy + (rnd() - 0.5) * h * 0.5), '#2a2c38');
+  }
+  // reflexo d'água no fundo
+  a.px(Math.round(cx + 1), Math.round(cy + 1), '#3a5a7a');
+  a.px(Math.round(cx + 2), Math.round(cy + 1), '#3a5a7a');
+  return { frames: [a] };
+}
+const drawHoleS = () => hole(14, 8, 11);
+const drawHoleM = () => hole(20, 10, 23);
+const drawHoleL = () => hole(26, 12, 37);
+
+// ---------------------------------------------------------------
+// OBSTÁCULOS
+// ---------------------------------------------------------------
+function drawCone() {
+  const a = new ArtCanvas(10, 10);
+  a.map([
+    '..kkkkkk..',
+    '.kooooook.',
+    'kooWWWWook',
+    'koWooooWok',
+    'koWoOOoWok',
+    'koWoOOoWok',
+    'koWooooWok',
+    'kooWWWWook',
+    '.kooooook.',
+    '..kkkkkk..'
+  ], { k: K, o: '#ff7b1c', O: '#ffc069', W: '#f4f4f4' });
+  return { frames: [a] };
+}
+
+function drawTire() {
+  const a = new ArtCanvas(12, 12);
+  a.ellipse(6, 6, 6, 6, (nx, ny, d) => {
+    if (d < 0.18) return null;
+    if (d < 0.3) return '#5b6578';
+    if (d > 0.86) return K;
+    return (Math.atan2(ny, nx) * 3) % 1 > 0.5 || (nx * ny > 0.1) ? '#2b2e3d' : '#3f4356';
+  });
+  return { frames: [a] };
+}
+
+function drawRock() {
+  const rnd = seededRandom(5);
+  const a = new ArtCanvas(14, 11);
+  a.ellipse(7, 6, 6.8, 5, (nx, ny, d) => {
+    if (d > 0.82) return K;
+    if (nx + ny < -0.6) return '#b8bccb';
+    if (nx + ny > 0.5) return '#5f6476';
+    return rnd() < 0.15 ? '#7d8296' : '#8d92a6';
+  });
+  a.px(5, 4, '#e0e3ee'); a.px(6, 4, '#e0e3ee');
+  return { frames: [a] };
+}
+
+function drawBox() {
+  const a = new ArtCanvas(12, 12);
+  a.rect(0, 0, 12, 12, K);
+  a.rect(1, 1, 10, 10, '#a8692e');
+  a.rect(2, 2, 8, 8, '#c98a43');
+  for (let i = 0; i < 8; i++) { a.px(2 + i, 2 + i, '#a8692e'); a.px(9 - i, 2 + i, '#a8692e'); }
+  a.px(1, 1, '#e5b06a'); a.px(2, 1, '#e5b06a'); a.px(1, 2, '#e5b06a');
+  return { frames: [a] };
+}
+
+function drawSign() {
+  const a = new ArtCanvas(14, 15);
+  a.map([
+    '......kk......',
+    '.....kyyk.....',
+    '....kyyyyk....',
+    '...kyyKKyyk...',
+    '..kyyyKKyyyk..',
+    '.kyyyyKKyyyyk.',
+    'kyyyyyKKyyyyyk',
+    '.kyyyyyyyyyyk.',
+    '..kyyyKKyyyk..',
+    '...kyyKKyyk...',
+    '....kyyyyk....',
+    '.....kyyk.....',
+    '......kk......',
+    '..gg......ggg.',
+    '...gg....gg...'
+  ], { k: K, y: '#ffd93d', K: '#1b1b2f', g: '#8d92a6' });
+  // rachadura (placa quebrada)
+  [[3, 6], [4, 7], [5, 7], [6, 8]].forEach(([x, y]) => a.px(x, y, '#c79a1d'));
+  return { frames: [a] };
+}
+
+function drawBarrier() {
+  const a = new ArtCanvas(28, 10);
+  for (let y = 0; y < 10; y++) for (let x = 0; x < 28; x++) {
+    let c = Math.floor((x + y) / 3) % 2 === 0 ? '#ff7b1c' : '#f4f4f4';
+    if (y === 0 || y === 9 || x === 0 || x === 27) c = K;
+    if ((x <= 2 || x >= 25) && y > 0 && y < 9) c = '#3f4356';
+    a.px(x, y, c);
+  }
+  a.px(1, 1, '#ffd93d'); a.px(26, 1, '#ffd93d');
+  return { frames: [a] };
+}
+
+function drawLog() {
+  const w = 56, h = 9;
+  const a = new ArtCanvas(w, h);
+  for (let y = 0; y < h; y++) for (let x = 3; x < w - 3; x++) {
+    let c = y < 2 ? '#a56b3a' : y > 6 ? '#5e3a1f' : '#7d4f2b';
+    if ((x * 7 + y * 3) % 11 === 0) c = '#5e3a1f';
+    a.px(x, y, c);
+  }
+  // extremidades (anéis)
+  [3, w - 4].forEach((cx) => a.ellipse(cx + 0.5, 4.5, 3, 4.5, (nx, ny, d) =>
+    d > 0.7 ? '#5e3a1f' : d > 0.35 ? '#e0b77d' : '#c99a5c'));
+  // galhos
+  a.rect(18, 0, 1, 1, '#5e3a1f'); a.rect(36, 8, 2, 1, '#5e3a1f');
+  return { frames: [a.padded(1).outline(K)] };
+}
+
+function drawFallenTree() {
+  const w = 88, h = 22;
+  const a = new ArtCanvas(w, h);
+  const rnd = seededRandom(77);
+  // tronco
+  for (let y = 8; y < 15; y++) for (let x = 2; x < 60; x++) {
+    let c = y < 10 ? '#a56b3a' : y > 13 ? '#5e3a1f' : '#7d4f2b';
+    if ((x * 5 + y) % 9 === 0) c = '#5e3a1f';
+    a.px(x, y, c);
+  }
+  a.ellipse(3, 11.5, 2.5, 3.5, (nx, ny, d) => (d > 0.5 ? '#5e3a1f' : '#e0b77d'));
+  // galhos
+  [[44, 6], [48, 5], [52, 16], [56, 17]].forEach(([x, y]) => a.rect(x, y, 4, 2, '#7d4f2b'));
+  // copa (folhas)
+  a.ellipse(72, 11, 15.5, 10.5, (nx, ny, d) => {
+    if (d > 0.9 && rnd() < 0.4) return null;
+    if (nx + ny < -0.5) return '#7ccf5a';
+    if (nx + ny > 0.6) return '#2f6b2f';
+    return rnd() < 0.22 ? '#3f8a3a' : '#52a843';
+  });
+  a.ellipse(62, 6, 6, 4.5, (nx, ny) => (ny < 0 ? '#7ccf5a' : '#52a843'));
+  a.ellipse(64, 17, 6, 4, (nx, ny) => (ny < 0 ? '#52a843' : '#2f6b2f'));
+  return { frames: [a.padded(1).outline(K)] };
+}
+
+const CAPY_PAL = { k: K, b: '#a86d3f', B: '#7b4b28', K: '#1b1b2f', n: '#3a2414' };
+function drawCapybara() {
+  const body = [
+    '..kkkkkkkk......',
+    '.kbbbbbbbbkkkk..',
+    'kbbBbbbbbbbbbbk.',
+    'kbbbbbbbbbbbbKbk',
+    'kbbbbbbbbbbbbbnk',
+    'kBbbbbbbbbbbbbk.',
+    '.kBBBBBBBBBBBk..'
+  ];
+  const legsA = ['..kbk.kbk.kbk...', '..kk...kk..kk...'];
+  const legsB = ['...kbk..kbk.kbk.', '...kk...kk...kk.'];
+  const f1 = new ArtCanvas(16, 10).map(body, CAPY_PAL).map(legsA, CAPY_PAL, 0, 7);
+  const f2 = new ArtCanvas(16, 10).map(body, CAPY_PAL).map(legsB, CAPY_PAL, 0, 7);
+  return { frames: [f1, f2] };
+}
+
+// ---------------------------------------------------------------
+// CENÁRIO
+// ---------------------------------------------------------------
+function drawTreeRound() {
+  const rnd = seededRandom(3);
+  const a = new ArtCanvas(26, 26);
+  a.ellipse(15, 16, 10, 9, 'rgba(0,0,0,0.28)'); // sombra
+  a.ellipse(12, 12, 11.5, 11.5, (nx, ny, d) => {
+    if (d > 0.92) return '#1f4a24';
+    if (nx + ny < -0.7) return '#8fdc68';
+    if (nx + ny < -0.2) return rnd() < 0.3 ? '#8fdc68' : '#5fb64a';
+    if (nx + ny > 0.7) return '#2a6430';
+    return rnd() < 0.25 ? '#2f7a36' : '#43933f';
+  });
+  // tufos
+  [[6, 7], [15, 5], [9, 15], [17, 13]].forEach(([x, y]) => a.ellipse(x, y, 2.5, 2.5, '#6cc455'));
+  return { frames: [a] };
+}
+
+function drawTreePine() {
+  const a = new ArtCanvas(22, 22);
+  a.ellipse(13, 13, 8, 8, 'rgba(0,0,0,0.28)');
+  for (let ring = 0; ring < 3; ring++) {
+    const r = 10 - ring * 3;
+    const col = ['#1f5a3a', '#2c7a4c', '#3f9b5f'][ring];
+    for (let i = 0; i < 8; i++) {
+      const ang = (i / 8) * Math.PI * 2 + ring * 0.4;
+      a.ellipse(11 + Math.cos(ang) * r * 0.55, 11 + Math.sin(ang) * r * 0.55, r * 0.5, r * 0.5, col);
+    }
+  }
+  a.ellipse(11, 11, 2, 2, '#6cc77f');
+  return { frames: [a.outline('#123622')] };
+}
+
+function drawBush() {
+  const a = new ArtCanvas(12, 9);
+  a.ellipse(4, 5, 4, 3.5, (nx, ny) => (ny < -0.2 ? '#6cc455' : '#3f8a3a'));
+  a.ellipse(8, 4.5, 4, 4, (nx, ny) => (ny < -0.2 ? '#7ccf5a' : '#43933f'));
+  a.px(3, 3, '#ff5a8a'); a.px(8, 2, '#ffd93d');
+  return { frames: [a] };
+}
+
+function drawFlowers() {
+  const a = new ArtCanvas(7, 5);
+  [[1, 1, '#ffd93d'], [4, 0, '#f4f4f4'], [5, 3, '#ff5a8a'], [2, 4, '#b57bff']].forEach(([x, y, c]) => a.px(x, y, c));
+  return { frames: [a] };
+}
+
+function drawTuft() {
+  const a = new ArtCanvas(6, 4);
+  a.map(['.g..g.', 'g.gg.g', '.GGGG.', '..GG..'], { g: '#7ccf5a', G: '#3f8a3a' });
+  return { frames: [a] };
+}
+
+function drawStone() {
+  const a = new ArtCanvas(5, 4);
+  a.map(['.ll..', 'lllm.', 'mmmmm', '.mmm.'], { l: '#b8bccb', m: '#7d8296' });
+  return { frames: [a] };
+}
+
+function drawKmPost() {
+  const a = new ArtCanvas(4, 9);
+  a.map(['kkkk', 'krrk', 'kwwk', 'kwwk', 'kwwk', 'kwwk', 'kwwk', 'kkkk', '.gg.'],
+    { k: K, r: '#e4343f', w: '#f4f4f4', g: 'rgba(0,0,0,0.3)' });
+  return { frames: [a] };
+}
+
+// ---------------------------------------------------------------
+// ESTRADA (tiles repetíveis)
+// ---------------------------------------------------------------
+function drawAsphalt() {
+  const rnd = seededRandom(9);
+  const a = new ArtCanvas(32, 32);
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+    const r = rnd();
+    a.px(x, y, r < 0.08 ? '#3a3d4a' : r < 0.16 ? '#2b2d37' : '#33353f');
+  }
+  // remendos e rachaduras sutis
+  [[5, 6], [6, 7], [7, 7], [8, 8], [22, 20], [23, 21], [23, 22]].forEach(([x, y]) => a.px(x, y, '#26272f'));
+  a.rect(18, 4, 5, 3, '#2e3039');
+  return { frames: [a] };
+}
+
+function drawGrass() {
+  const rnd = seededRandom(21);
+  const a = new ArtCanvas(32, 32);
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+    const r = rnd();
+    a.px(x, y, r < 0.1 ? '#4c9a3f' : r < 0.2 ? '#3a7d34' : '#43893a');
+  }
+  for (let i = 0; i < 10; i++) a.px(Math.floor(rnd() * 32), Math.floor(rnd() * 32), '#5fb64a');
+  return { frames: [a] };
+}
+
+function drawGravel() {
+  const rnd = seededRandom(31);
+  const a = new ArtCanvas(5, 16);
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 5; x++) {
+    const r = rnd();
+    a.px(x, y, r < 0.3 ? '#8a7f6a' : r < 0.6 ? '#6f6656' : '#a39782');
+  }
+  return { frames: [a] };
+}
+
+function drawLaneDash() {
+  const a = new ArtCanvas(2, 24);
+  a.rect(0, 0, 2, 12, '#e8e8e8');
+  return { frames: [a] };
+}
+
+function drawEdgeLine() {
+  const a = new ArtCanvas(2, 8);
+  a.rect(0, 0, 2, 8, '#f2d14b');
+  return { frames: [a] };
+}
+
+// ---------------------------------------------------------------
+// COLETÁVEIS E POWER-UPS
+// ---------------------------------------------------------------
+function drawGear() {
+  const mk = (diag) => {
+    const a = new ArtCanvas(11, 11);
+    const teeth = diag
+      ? [[1, 1], [8, 1], [1, 8], [8, 8]]
+      : [[4, 0], [4, 9], [0, 4], [9, 4]];
+    teeth.forEach(([x, y]) => a.rect(x, y, 2, 2, '#c9921f'));
+    a.ellipse(5.5, 5.5, 4, 4, (nx, ny, d) => (d < 0.2 ? '#5a3d0a' : nx + ny < -0.3 ? '#fff1a8' : '#f7c548'));
+    return a.outline('#5a3d0a');
+  };
+  return { frames: [mk(false), mk(true)] };
+}
+
+function pickupBox(color, icon, iconPal = {}) {
+  const a = new ArtCanvas(14, 14);
+  a.rect(1, 0, 12, 14, K); a.rect(0, 1, 14, 12, K);
+  a.rect(1, 1, 12, 12, color);
+  a.rect(1, 1, 12, 1, shade(color, 1.35));
+  a.rect(1, 12, 12, 1, shade(color, 0.6));
+  a.map(icon, { w: '#ffffff', k: K, g: '#c0c6d6', ...iconPal }, 3, 3);
+  return { frames: [a] };
+}
+
+const ICONS = {
+  shield: ['.wwwwww.', 'wwwwwwww', 'wwwkkwww', 'wwwkkwww', '.wwwwww.', '.wwwwww.', '..wwww..', '...ww...'],
+  boost: ['...ww...', '..wwww..', '.ww..ww.', 'w..ww..w', '..wwww..', '.ww..ww.', 'ww....ww', '........'],
+  repair: ['...ww...', '...ww...', '...ww...', 'wwwwwwww', 'wwwwwwww', '...ww...', '...ww...', '...ww...'],
+  dash: ['....ww..', '...ww...', '..ww....', '.wwwwww.', '....ww..', '...ww...', '..ww....', '.w......'],
+  magnet: ['gg....gg', 'ww....ww', 'ww....ww', 'ww....ww', 'ww....ww', '.ww..ww.', '..wwww..', '........'],
+  clock: ['..wwww..', '.wkkkkw.', 'wkkwkkkw', 'wkkwkkkw', 'wkkwwwkw', 'wkkkkkkw', '.wkkkkw.', '..wwww..']
+};
+
+const drawPuShield = () => pickupBox('#2f8fd8', ICONS.shield);
+const drawPuBoost = () => pickupBox('#e8701c', ICONS.boost);
+const drawPuRepair = () => pickupBox('#2fa866', ICONS.repair);
+const drawPuDash = () => pickupBox('#8a4fd8', ICONS.dash);
+const drawPuMagnet = () => pickupBox('#d83a6a', ICONS.magnet);
+const drawClockS = () => pickupBox('#1fa6b8', ICONS.clock);
+const drawClockL = () => pickupBox('#d8a21f', ICONS.clock);
+
+// ---------------------------------------------------------------
+// PARTÍCULAS / EFEITOS / UI
+// ---------------------------------------------------------------
+const drawPx = () => ({ frames: [new ArtCanvas(1, 1).px(0, 0, '#ffffff')] });
+const drawSpark = () => ({ frames: [new ArtCanvas(2, 2).rect(0, 0, 2, 2, '#ffffff')] });
+function drawSmoke() {
+  const a = new ArtCanvas(5, 5);
+  a.ellipse(2.5, 2.5, 2.5, 2.5, '#ffffff');
+  return { frames: [a] };
+}
+function drawSpeedline() {
+  const a = new ArtCanvas(1, 16);
+  for (let y = 0; y < 16; y++) a.px(0, y, `rgba(255,255,255,${(0.15 + 0.5 * (y / 16)).toFixed(2)})`);
+  return { frames: [a] };
+}
+function drawStormEdge() {
+  const rnd = seededRandom(55);
+  const a = new ArtCanvas(64, 24);
+  for (let i = 0; i < 9; i++) {
+    const cx = i * 8 + rnd() * 4;
+    const r = 5 + rnd() * 5;
+    a.ellipse(cx, 16, r, r * 0.8, (nx, ny) => (ny < -0.4 ? '#6b5a9e' : ny < 0.2 ? '#4a3d78' : '#2c2350'));
+    a.ellipse(cx - 64, 16, r, r * 0.8, (nx, ny) => (ny < -0.4 ? '#6b5a9e' : '#4a3d78'));
+  }
+  a.rect(0, 20, 64, 4, '#2c2350');
+  return { frames: [a] };
+}
+function drawRain() {
+  const a = new ArtCanvas(1, 5);
+  a.rect(0, 0, 1, 5, 'rgba(170,200,255,0.7)');
+  return { frames: [a] };
+}
+function drawHeart(empty = false) {
+  const a = new ArtCanvas(9, 8);
+  const rows = ['.kk...kk.', 'krrk.krrk', 'krhrkrrrk', 'krrrrrrrk', '.krrrrrk.', '..krrrk..', '...krk...', '....k....'];
+  a.map(rows, empty
+    ? { k: '#5b6578', r: '#2b2d37', h: '#2b2d37' }
+    : { k: K, r: '#ff4d5e', h: '#ffd0d5' });
+  return { frames: [a] };
+}
+const drawHeartEmpty = () => drawHeart(true);
+function drawIconDash() {
+  const a = new ArtCanvas(8, 8);
+  a.map(ICONS.dash, { w: '#ffffff' });
+  return { frames: [a] };
+}
+function drawIconJump() {
+  const a = new ArtCanvas(8, 8);
+  a.map(['...ww...', '..wwww..', '.wwwwww.', '...ww...', '...ww...', '........', '.wwwwww.', '........'], { w: '#ffffff' });
+  return { frames: [a] };
+}
+function drawTouchBtn() {
+  const a = new ArtCanvas(24, 24);
+  a.ellipse(12, 12, 12, 12, (nx, ny, d) => (d > 0.82 ? 'rgba(255,255,255,0.6)' : 'rgba(20,18,31,0.45)'));
+  return { frames: [a] };
+}
+
+// Lista usada pela BootScene: chave -> função de desenho
+const ART_REGISTRY = {
+  truck_shadow: drawTruckShadow,
+  shield_bubble: drawShieldBubble,
+  hole_s: drawHoleS, hole_m: drawHoleM, hole_l: drawHoleL,
+  cone: drawCone, tire: drawTire, rock: drawRock, box: drawBox, sign: drawSign,
+  barrier: drawBarrier, log: drawLog, fallen_tree: drawFallenTree, capybara: drawCapybara,
+  tree_round: drawTreeRound, tree_pine: drawTreePine, bush: drawBush, flowers: drawFlowers,
+  tuft: drawTuft, stone: drawStone, km_post: drawKmPost,
+  asphalt: drawAsphalt, grass: drawGrass, gravel: drawGravel, lane_dash: drawLaneDash, edge_line: drawEdgeLine,
+  gear: drawGear, clock_s: drawClockS, clock_l: drawClockL,
+  pu_shield: drawPuShield, pu_boost: drawPuBoost, pu_repair: drawPuRepair, pu_dash: drawPuDash, pu_magnet: drawPuMagnet,
+  px: drawPx, spark: drawSpark, smoke: drawSmoke, speedline: drawSpeedline, storm_edge: drawStormEdge, rain: drawRain,
+  heart: drawHeart, heart_empty: drawHeartEmpty, icon_dash: drawIconDash, icon_jump: drawIconJump, touch_btn: drawTouchBtn
+};
+
+return { TRUCK_PALETTE, drawTruck, drawTruckShadow, drawShieldBubble, drawHoleS, drawHoleM, drawHoleL, drawCone, drawTire, drawRock, drawBox, drawSign, drawBarrier, drawLog, drawFallenTree, drawCapybara, drawTreeRound, drawTreePine, drawBush, drawFlowers, drawTuft, drawStone, drawKmPost, drawAsphalt, drawGrass, drawGravel, drawLaneDash, drawEdgeLine, drawGear, drawPuShield, drawPuBoost, drawPuRepair, drawPuDash, drawPuMagnet, drawClockS, drawClockL, drawPx, drawSpark, drawSmoke, drawSpeedline, drawStormEdge, drawRain, drawHeart, drawHeartEmpty, drawIconDash, drawIconJump, drawTouchBtn, ART_REGISTRY };
+})();
+
+// ---- src/config/cosmetics.js ----
+__m['src/config/cosmetics.js'] = (function () {
+// =============================================================
+// cosmetics.js — ponto de expansão para caminhões/pinturas.
+// Nesta versão só existe a pintura padrão. As engrenagens
+// coletadas já são acumuladas em StorageManager.wallet para
+// uma futura loja (NÃO implementada nesta versão).
+// =============================================================
+
+const TRUCK_SKINS = {
+  classic: {
+    id: 'classic',
+    name: 'Clássico',
+    cost: 0,
+    // Sobrescreve cores da paleta do caminhão (ver art/sprites.js)
+    palette: {}
+  }
+  // Exemplo futuro:
+  // midnight: { id: 'midnight', name: 'Meia-noite', cost: 500,
+  //             palette: { r: '#3b4cca', R: '#1f2a7a', h: '#7d8cff' } }
+};
+
+const DEFAULT_SKIN = 'classic';
+
+return { TRUCK_SKINS, DEFAULT_SKIN };
+})();
+
+// ---- src/art/PixelArtFactory.js ----
+__m['src/art/PixelArtFactory.js'] = (function () {
+// =============================================================
+// PixelArtFactory.js — converte ArtCanvas em texturas Phaser.
+// Só gera uma textura se a chave AINDA NÃO existir, permitindo
+// que PNGs externos (config/assets.js) tenham prioridade.
+// =============================================================
+const { ART_PX } = __m['src/config/gameConfig.js'];
+const { HIGH_CONTRAST_KEYS } = __m['src/config/assets.js'];
+const { ART_REGISTRY, drawTruck } = __m['src/art/sprites.js'];
+const { TRUCK_SKINS, DEFAULT_SKIN } = __m['src/config/cosmetics.js'];
+
+const HC_OUTLINE = '#fff23a';
+
+class PixelArtFactory {
+  constructor(scene, px = ART_PX) {
+    this.scene = scene;
+    this.px = px;
+  }
+
+  // Cria textura (tira horizontal de frames) a partir de ArtCanvas[]
+  createStrip(key, frames) {
+    const textures = this.scene.textures;
+    if (textures.exists(key)) return false;
+    const fw = frames[0].w, fh = frames[0].h;
+    const W = fw * this.px * frames.length;
+    const H = fh * this.px;
+    const tex = textures.createCanvas(key, W, H);
+    const ctx = tex.getContext();
+    ctx.imageSmoothingEnabled = false;
+    frames.forEach((art, i) => {
+      const ox = i * fw * this.px;
+      for (let y = 0; y < art.h; y++) {
+        for (let x = 0; x < art.w; x++) {
+          const c = art.data[y * art.w + x];
+          if (!c) continue;
+          ctx.fillStyle = c;
+          ctx.fillRect(ox + x * this.px, y * this.px, this.px, this.px);
+        }
+      }
+      // frames numéricos (0..n) — mesmo padrão de load.spritesheet
+      tex.add(i, 0, ox, 0, fw * this.px, fh * this.px);
+    });
+    tex.refresh();
+    return true;
+  }
+
+  // Gera todas as texturas procedurais que estiverem faltando
+  generateAll(settings = {}) {
+    const skin = TRUCK_SKINS[settings.truckSkin] || TRUCK_SKINS[DEFAULT_SKIN];
+    this.createStrip('truck', drawTruck(skin.palette).frames);
+
+    Object.entries(ART_REGISTRY).forEach(([key, fn]) => {
+      const art = fn();
+      const created = this.createStrip(key, art.frames);
+      // variante de alto contraste só para texturas procedurais
+      if (created && HIGH_CONTRAST_KEYS.includes(key)) {
+        const hcFrames = art.frames.map((f) => f.padded(2).outline(HC_OUTLINE).outline(HC_OUTLINE));
+        this.createStrip(key + '_hc', hcFrames);
+      }
+    });
+  }
+
+  // Cria animações (idempotente). Funciona com texturas geradas OU externas.
+  createAnimations() {
+    const anims = this.scene.anims;
+    const make = (key, tex, frames, frameRate, repeat = -1) => {
+      if (anims.exists(key) || !this.scene.textures.exists(tex)) return;
+      anims.create({ key, frames: frames.map((f) => ({ key: tex, frame: f })), frameRate, repeat });
+    };
+    make('truck_drive', 'truck', [0, 1], 12);
+    make('truck_jump', 'truck', [2], 1, 0);
+    make('truck_dash', 'truck', [3, 4], 20);
+    make('truck_hit', 'truck', [5, 0, 5, 0], 16, 0);
+    make('truck_wreck', 'truck', [6], 1, 0);
+    make('capy_walk', 'capybara', [0, 1], 6);
+    make('capy_walk_hc', 'capybara_hc', [0, 1], 6);
+    make('gear_spin', 'gear', [0, 1], 6);
+  }
+}
+
+return { PixelArtFactory };
+})();
+
+// ---- src/config/modes.js ----
+__m['src/config/modes.js'] = (function () {
+// =============================================================
+// modes.js — definição declarativa dos três modos de jogo.
+// A lógica específica de cada modo está em systems/ModeRules.js
+// =============================================================
+
+const MODE_IDS = {
+  ENDLESS: 'endless',
+  TIME_ATTACK: 'timeattack',
+  ESCAPE: 'escape'
+};
+
+const MODES = {
+  endless: {
+    id: 'endless',
+    name: 'ESTRADA INFINITA',
+    short: 'INFINITA',
+    color: 0x6ee7a0,
+    description: [
+      'Vá o mais longe que',
+      'puder. Você tem 3',
+      'vidas e a velocidade',
+      'só aumenta.'
+    ],
+    usesLives: true,
+    usesTimer: false,
+    usesThreat: false,
+    allowRepair: true
+  },
+  timeattack: {
+    id: 'timeattack',
+    name: 'CONTRA O TEMPO',
+    short: 'TEMPO',
+    color: 0x6cc7ff,
+    description: [
+      'Corra contra o',
+      'relógio! Pegue',
+      'relógios: +3s e +5s.',
+      'Batidas custam tempo.'
+    ],
+    usesLives: false,
+    usesTimer: true,
+    usesThreat: false,
+    allowRepair: false
+  },
+  escape: {
+    id: 'escape',
+    name: 'FUGA DA TEMPESTADE',
+    short: 'FUGA',
+    color: 0xb57bff,
+    description: [
+      'A tempestade está',
+      'chegando! Use dash e',
+      'boost para manter',
+      'distância.'
+    ],
+    usesLives: false,
+    usesTimer: false,
+    usesThreat: true,
+    allowRepair: false
+  }
+};
+
+const MODE_ORDER = ['endless', 'timeattack', 'escape'];
+
+return { MODE_IDS, MODES, MODE_ORDER };
+})();
+
+// ---- src/systems/StorageManager.js ----
+__m['src/systems/StorageManager.js'] = (function () {
+// =============================================================
+// StorageManager.js — persistência segura no localStorage
+// (configurações, recordes por modo, carteira de engrenagens).
+// Tolerante a navegadores sem localStorage (modo privado etc.).
+// =============================================================
+const { STORAGE_KEYS } = __m['src/config/gameConfig.js'];
+const { MODE_ORDER } = __m['src/config/modes.js'];
+const { DEFAULT_SKIN } = __m['src/config/cosmetics.js'];
+
+const DEFAULT_SETTINGS = {
+  musicOn: true,
+  sfxOn: true,
+  masterVolume: 0.8,       // 0..1
+  shake: 'normal',         // 'normal' | 'reduced' | 'off'
+  highContrast: false,
+  particles: true,         // partículas e rastro
+  flashes: true,           // flashes de tela
+  showFps: false,
+  truckSkin: DEFAULT_SKIN,
+  keyBindings: null        // null = usar DEFAULT_KEY_BINDINGS (remapeamento futuro)
+};
+
+function memoryStore() {
+  const m = new Map();
+  return {
+    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => m.set(k, String(v)),
+    removeItem: (k) => m.delete(k)
+  };
+}
+
+class StorageManagerClass {
+  constructor() {
+    this.store = this._detect();
+    this._settings = null;
+    this._records = null;
+    this._wallet = null;
+  }
+
+  _detect() {
+    try {
+      const ls = globalThis.localStorage;
+      const t = '__asfalto_test__';
+      ls.setItem(t, '1');
+      ls.removeItem(t);
+      return ls;
+    } catch (e) {
+      return memoryStore();
+    }
+  }
+
+  _read(key, fallback) {
+    try {
+      const raw = this.store.getItem(key);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      return parsed ?? fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  _write(key, value) {
+    try { this.store.setItem(key, JSON.stringify(value)); } catch (e) { /* cota cheia etc. */ }
+  }
+
+  // ---------- Configurações ----------
+  getSettings() {
+    if (!this._settings) {
+      this._settings = { ...DEFAULT_SETTINGS, ...this._read(STORAGE_KEYS.SETTINGS, {}) };
+    }
+    return this._settings;
+  }
+
+  updateSettings(patch) {
+    this._settings = { ...this.getSettings(), ...patch };
+    this._write(STORAGE_KEYS.SETTINGS, this._settings);
+    return this._settings;
+  }
+
+  // ---------- Recordes ----------
+  _emptyRecords() {
+    const r = {};
+    MODE_ORDER.forEach((m) => { r[m] = { score: 0, distance: 0 }; });
+    return r;
+  }
+
+  getRecords() {
+    if (!this._records) {
+      this._records = { ...this._emptyRecords(), ...this._read(STORAGE_KEYS.RECORDS, {}) };
+    }
+    return this._records;
+  }
+
+  getRecord(mode) {
+    return this.getRecords()[mode] || { score: 0, distance: 0 };
+  }
+
+  // Retorna { newScore, newDistance, best }
+  submitRecord(mode, score, distance) {
+    const records = this.getRecords();
+    const cur = records[mode] || { score: 0, distance: 0 };
+    const res = { newScore: false, newDistance: false };
+    if (score > cur.score) { cur.score = Math.floor(score); res.newScore = true; }
+    if (distance > cur.distance) { cur.distance = Math.floor(distance); res.newDistance = true; }
+    records[mode] = cur;
+    this._write(STORAGE_KEYS.RECORDS, records);
+    res.best = { ...cur };
+    return res;
+  }
+
+  resetRecords() {
+    this._records = this._emptyRecords();
+    this._write(STORAGE_KEYS.RECORDS, this._records);
+  }
+
+  // ---------- Carteira (expansão futura: loja/cosméticos) ----------
+  getWallet() {
+    if (!this._wallet) {
+      this._wallet = { gears: 0, unlockedSkins: [DEFAULT_SKIN], ...this._read(STORAGE_KEYS.WALLET, {}) };
+    }
+    return this._wallet;
+  }
+
+  addGears(n) {
+    const w = this.getWallet();
+    w.gears += Math.max(0, Math.floor(n));
+    this._write(STORAGE_KEYS.WALLET, w);
+    return w.gears;
+  }
+}
+
+const StorageManager = new StorageManagerClass();
+
+return { DEFAULT_SETTINGS, StorageManager };
+})();
+
+// ---- src/systems/AudioManager.js ----
+__m['src/systems/AudioManager.js'] = (function () {
+// =============================================================
+// AudioManager.js — áudio 100% sintetizado (WebAudio), sem
+// arquivos. Dividido em MusicManager e SFXManager.
+// Para usar arquivos reais no futuro, substitua os métodos
+// play()/start() mantendo os mesmos nomes de som.
+// =============================================================
+const { StorageManager } = __m['src/systems/StorageManager.js'];
+
+const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12); // MIDI -> Hz
+
+class AudioCore {
+  constructor() {
+    this.ctx = null;
+    this.master = null;
+    this.musicBus = null;
+    this.sfxBus = null;
+    this.noiseBuffer = null;
+    this.unlocked = false;
+    this._onUnlock = [];
+  }
+
+  ensure() {
+    if (this.ctx) return this.ctx;
+    const AC = globalThis.AudioContext || globalThis.webkitAudioContext;
+    if (!AC) return null;
+    try {
+      this.ctx = new AC();
+    } catch (e) { return null; }
+    this.master = this.ctx.createGain();
+    this.master.connect(this.ctx.destination);
+    this.musicBus = this.ctx.createGain();
+    this.sfxBus = this.ctx.createGain();
+    this.musicBus.connect(this.master);
+    this.sfxBus.connect(this.master);
+    // buffer de ruído branco reutilizável
+    const len = this.ctx.sampleRate;
+    this.noiseBuffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = this.noiseBuffer.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.applySettings();
+    return this.ctx;
+  }
+
+  // Navegadores exigem gesto do usuário para iniciar o áudio
+  unlock() {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    if (!this.unlocked) {
+      this.unlocked = true;
+      this._onUnlock.splice(0).forEach((fn) => fn());
+    }
+  }
+
+  whenUnlocked(fn) {
+    if (this.unlocked) fn(); else this._onUnlock.push(fn);
+  }
+
+  applySettings() {
+    if (!this.ctx) return;
+    const s = StorageManager.getSettings();
+    const t = this.ctx.currentTime;
+    this.master.gain.setTargetAtTime(s.masterVolume, t, 0.02);
+    this.musicBus.gain.setTargetAtTime(s.musicOn ? 0.22 : 0, t, 0.05);
+    this.sfxBus.gain.setTargetAtTime(s.sfxOn ? 0.55 : 0, t, 0.02);
+  }
+
+  get now() { return this.ctx ? this.ctx.currentTime : 0; }
+}
+
+const audioCore = new AudioCore();
+
+// -------------------------------------------------------------
+// SFXManager
+// -------------------------------------------------------------
+class SFXManagerClass {
+  constructor(core) {
+    this.core = core;
+    this.engine = null;
+    this._last = {};
+  }
+
+  _tone({ type = 'square', from = 440, to = from, dur = 0.1, vol = 0.3, delay = 0, curve = 'exp' }) {
+    const ctx = this.core.ctx;
+    const t = ctx.currentTime + delay;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(from, t);
+    if (to !== from) {
+      if (curve === 'exp') o.frequency.exponentialRampToValueAtTime(Math.max(1, to), t + dur);
+      else o.frequency.linearRampToValueAtTime(to, t + dur);
+    }
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.core.sfxBus);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+
+  _noise({ dur = 0.2, vol = 0.3, filter = 1200, type = 'lowpass', sweepTo = null, delay = 0 }) {
+    const ctx = this.core.ctx;
+    const t = ctx.currentTime + delay;
+    const src = ctx.createBufferSource();
+    src.buffer = this.core.noiseBuffer;
+    const f = ctx.createBiquadFilter();
+    f.type = type;
+    f.frequency.setValueAtTime(filter, t);
+    if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(this.core.sfxBus);
+    src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.02);
+  }
+
+  // Sons disponíveis: jump, land, dash, hit, crash, collect, powerup,
+  // combo, gameover, ui, uiMove, record, time, warning, accel
+  play(name, opts = {}) {
+    if (!this.core.ctx || !this.core.unlocked) return;
+    if (!StorageManager.getSettings().sfxOn) return;
+    // anti-spam: mesmo som no mesmo instante
+    const now = this.core.now;
+    if (this._last[name] && now - this._last[name] < 0.03) return;
+    this._last[name] = now;
+
+    switch (name) {
+      case 'jump':
+        this._tone({ type: 'square', from: 220, to: 660, dur: 0.16, vol: 0.18 });
+        break;
+      case 'land':
+        this._noise({ dur: 0.12, vol: 0.35, filter: 500 });
+        this._tone({ type: 'triangle', from: 120, to: 60, dur: 0.1, vol: 0.3 });
+        break;
+      case 'dash':
+        this._noise({ dur: 0.25, vol: 0.3, filter: 600, type: 'bandpass', sweepTo: 4000 });
+        this._tone({ type: 'sawtooth', from: 180, to: 520, dur: 0.18, vol: 0.08 });
+        break;
+      case 'hit':
+        this._noise({ dur: 0.3, vol: 0.5, filter: 900, sweepTo: 200 });
+        this._tone({ type: 'square', from: 160, to: 50, dur: 0.25, vol: 0.2 });
+        break;
+      case 'crash':
+        this._noise({ dur: 0.8, vol: 0.6, filter: 1400, sweepTo: 120 });
+        this._tone({ type: 'sawtooth', from: 110, to: 30, dur: 0.7, vol: 0.25 });
+        break;
+      case 'collect': {
+        const p = opts.pitch || 0;
+        this._tone({ type: 'square', from: NOTE(84 + p), dur: 0.06, vol: 0.12 });
+        this._tone({ type: 'square', from: NOTE(91 + p), dur: 0.09, vol: 0.12, delay: 0.05 });
+        break;
+      }
+      case 'powerup':
+        [72, 76, 79, 84].forEach((n, i) => this._tone({ type: 'square', from: NOTE(n), dur: 0.09, vol: 0.13, delay: i * 0.06 }));
+        break;
+      case 'combo': {
+        const lvl = Math.min(8, opts.level || 1);
+        this._tone({ type: 'triangle', from: NOTE(72 + lvl * 2), to: NOTE(79 + lvl * 2), dur: 0.15, vol: 0.2 });
+        break;
+      }
+      case 'gameover':
+        [67, 63, 60, 55].forEach((n, i) => this._tone({ type: 'square', from: NOTE(n), dur: 0.22, vol: 0.15, delay: i * 0.2 }));
+        break;
+      case 'record':
+        [72, 76, 79, 84, 79, 84, 88].forEach((n, i) => this._tone({ type: 'square', from: NOTE(n), dur: 0.12, vol: 0.13, delay: i * 0.09 }));
+        break;
+      case 'ui':
+        this._tone({ type: 'square', from: NOTE(81), dur: 0.05, vol: 0.12 });
+        this._tone({ type: 'square', from: NOTE(88), dur: 0.07, vol: 0.12, delay: 0.04 });
+        break;
+      case 'uiMove':
+        this._tone({ type: 'square', from: NOTE(76), dur: 0.035, vol: 0.08 });
+        break;
+      case 'time':
+        this._tone({ type: 'triangle', from: NOTE(84), dur: 0.08, vol: 0.2 });
+        this._tone({ type: 'triangle', from: NOTE(96), dur: 0.12, vol: 0.2, delay: 0.07 });
+        break;
+      case 'warning':
+        this._tone({ type: 'square', from: NOTE(60), dur: 0.12, vol: 0.12 });
+        break;
+      case 'accel':
+        this._tone({ type: 'sawtooth', from: 90, to: 240, dur: 0.4, vol: 0.06 });
+        break;
+      default:
+        break;
+    }
+  }
+
+  // ---------- Motor contínuo (frequência acompanha velocidade) ----------
+  startEngine() {
+    if (!this.core.ctx || this.engine) return;
+    const ctx = this.core.ctx;
+    const osc = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc2.type = 'square';
+    filter.type = 'lowpass';
+    filter.frequency.value = 380;
+    gain.gain.value = 0;
+    osc.connect(filter); osc2.connect(filter); filter.connect(gain); gain.connect(this.core.sfxBus);
+    osc.frequency.value = 45; osc2.frequency.value = 22.5;
+    osc.start(); osc2.start();
+    this.engine = { osc, osc2, filter, gain };
+  }
+
+  // ratio: 0..1 (velocidade atual / máxima)
+  updateEngine(ratio, active = true) {
+    if (!this.engine) return;
+    const t = this.core.now;
+    const r = Math.max(0, Math.min(1.4, ratio));
+    this.engine.osc.frequency.setTargetAtTime(42 + r * 70, t, 0.08);
+    this.engine.osc2.frequency.setTargetAtTime(21 + r * 35, t, 0.08);
+    this.engine.filter.frequency.setTargetAtTime(300 + r * 900, t, 0.1);
+    this.engine.gain.gain.setTargetAtTime(active ? 0.07 + r * 0.06 : 0, t, 0.08);
+  }
+
+  stopEngine() {
+    if (!this.engine) return;
+    const { osc, osc2, gain } = this.engine;
+    const t = this.core.now;
+    gain.gain.setTargetAtTime(0, t, 0.05);
+    osc.stop(t + 0.3); osc2.stop(t + 0.3);
+    this.engine = null;
+  }
+}
+
+// -------------------------------------------------------------
+// MusicManager — sequenciador chiptune simples com lookahead
+// -------------------------------------------------------------
+const TRACKS = {
+  menu: {
+    bpm: 112,
+    // [melodia, baixo] em MIDI; null = pausa. 16 passos x 4 compassos
+    lead: [69, null, 72, null, 76, null, 74, 72, 69, null, 67, null, 69, null, null, null,
+      65, null, 69, null, 72, null, 71, 69, 67, null, 64, null, 67, null, null, null,
+      69, null, 72, null, 76, null, 79, 77, 76, null, 74, null, 72, null, 74, null,
+      76, null, 72, null, 69, null, 67, null, 69, null, null, null, null, null, null, null],
+    bass: [45, 45, 57, 45, 41, 41, 53, 41, 43, 43, 55, 43, 45, 45, 57, 45]
+  },
+  game: {
+    bpm: 142,
+    lead: [76, null, 76, 79, null, 76, 74, null, 72, null, 74, 76, null, null, 72, null,
+      74, null, 74, 77, null, 74, 72, null, 71, null, 72, 74, null, null, 67, null,
+      76, null, 76, 79, null, 81, 79, null, 76, null, 79, 84, null, 83, 81, null,
+      79, null, 76, null, 74, null, 72, null, 74, null, 71, null, 72, null, null, null],
+    bass: [45, null, 45, 57, 45, null, 45, 57, 41, null, 41, 53, 43, null, 43, 55]
+  }
+};
+
+class MusicManagerClass {
+  constructor(core) {
+    this.core = core;
+    this.track = null;
+    this.step = 0;
+    this.nextTime = 0;
+    this.timer = null;
+    this.ducked = false;
+  }
+
+  play(name) {
+    if (this.track === TRACKS[name] && this.timer) return;
+    this.stop();
+    this.track = TRACKS[name] || null;
+    if (!this.track) return;
+    this.core.whenUnlocked(() => {
+      if (!this.track || this.timer) return;
+      this.step = 0;
+      this.nextTime = this.core.now + 0.1;
+      this.timer = setInterval(() => this._schedule(), 25);
+    });
+  }
+
+  stop() {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    this.track = null;
+  }
+
+  duck(on) {
+    this.ducked = on;
+  }
+
+  _note(freq, t, dur, type, vol) {
+    const ctx = this.core.ctx;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.core.musicBus);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+
+  _schedule() {
+    if (!this.track || !this.core.ctx) return;
+    const stepDur = 60 / this.track.bpm / 4;
+    const duck = this.ducked ? 0.35 : 1;
+    while (this.nextTime < this.core.now + 0.12) {
+      const lead = this.track.lead[this.step % this.track.lead.length];
+      const bass = this.track.bass[this.step % this.track.bass.length];
+      if (lead) this._note(NOTE(lead), this.nextTime, stepDur * 1.6, 'square', 0.22 * duck);
+      if (bass) this._note(NOTE(bass), this.nextTime, stepDur * 0.9, 'triangle', 0.45 * duck);
+      if (this.step % 4 === 0) this._kick(this.nextTime, duck);
+      this.step++;
+      this.nextTime += stepDur;
+    }
+  }
+
+  _kick(t, duck) {
+    const ctx = this.core.ctx;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.frequency.setValueAtTime(140, t);
+    o.frequency.exponentialRampToValueAtTime(40, t + 0.1);
+    g.gain.setValueAtTime(0.5 * duck, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    o.connect(g); g.connect(this.core.musicBus);
+    o.start(t); o.stop(t + 0.14);
+  }
+}
+
+const SFXManager = new SFXManagerClass(audioCore);
+const MusicManager = new MusicManagerClass(audioCore);
+
+// Fachada única
+const AudioManager = {
+  core: audioCore,
+  sfx: SFXManager,
+  music: MusicManager,
+  unlock: () => audioCore.unlock(),
+  applySettings: () => audioCore.applySettings()
+};
+
+return { audioCore, SFXManager, MusicManager, AudioManager };
+})();
+
+// ---- src/scenes/BootScene.js ----
+__m['src/scenes/BootScene.js'] = (function () {
+// =============================================================
+// BootScene — estado BOOT.
+// 1) tenta carregar assets externos opcionais (manifesto);
+// 2) gera pixel art procedural para tudo que estiver faltando;
+// 3) cria animações e segue para o menu.
+// =============================================================
+const { SCENES, GAME_STATE, GAME_WIDTH, GAME_HEIGHT, UI_COLORS } = __m['src/config/gameConfig.js'];
+const { EXTERNAL_ASSETS } = __m['src/config/assets.js'];
+const { PixelArtFactory } = __m['src/art/PixelArtFactory.js'];
+const { StorageManager } = __m['src/systems/StorageManager.js'];
+const { AudioManager } = __m['src/systems/AudioManager.js'];
+
+class BootScene extends Phaser.Scene {
+  constructor() { super(SCENES.BOOT); }
+
+  preload() {
+    this.registry.set('state', GAME_STATE.BOOT);
+    // barra de carregamento simples
+    const w = 240, h = 8;
+    const x = (GAME_WIDTH - w) / 2, y = GAME_HEIGHT / 2;
+    const bg = this.add.rectangle(x, y, w, h, 0x2b2d37).setOrigin(0, 0.5);
+    const bar = this.add.rectangle(x, y, 1, h, UI_COLORS.ACCENT_HEX).setOrigin(0, 0.5);
+    this.load.on('progress', (p) => { bar.width = Math.max(1, w * p); });
+    this.load.on('complete', () => { bg.destroy(); bar.destroy(); });
+    // arquivo ausente não quebra o jogo: placeholder procedural assume
+    this.load.on('loaderror', (file) => {
+      console.warn(`[Asfalto Rush] asset opcional não encontrado: ${file.key} — usando placeholder.`);
+    });
+
+    EXTERNAL_ASSETS.forEach((a) => {
+      if (a.type === 'spritesheet') {
+        this.load.spritesheet(a.key, a.url, { frameWidth: a.frameWidth, frameHeight: a.frameHeight });
+      } else if (a.type === 'image') {
+        this.load.image(a.key, a.url);
+      } else if (a.type === 'audio') {
+        this.load.audio(a.key, a.url);
+      }
+    });
+  }
+
+  create() {
+    const settings = StorageManager.getSettings();
+    const factory = new PixelArtFactory(this);
+    factory.generateAll(settings);
+    factory.createAnimations();
+    AudioManager.applySettings();
+    this.scene.start(SCENES.MENU);
+  }
+}
+
+return { BootScene };
+})();
+
+// ---- src/config/balance.js ----
+__m['src/config/balance.js'] = (function () {
+// =============================================================
+// balance.js — TODOS os números de balanceamento do jogo.
+// Ajuste aqui sem tocar na lógica. Velocidades em px/s,
+// tempos em segundos, distâncias em pixels de tela.
+// =============================================================
+
+// ---------------- Caminhão ----------------
+const TRUCK = {
+  HITBOX_W: 20,              // hitbox justa (sprite tem 28 px de largura)
+  HITBOX_H: 44,              // sprite tem ~52 px de corpo
+  HOME_Y: 285,               // posição vertical inicial
+  MIN_Y: 190,                // limite superior (W)
+  MAX_Y: 318,                // limite inferior (S)
+
+  LATERAL_MAX: 270,          // velocidade lateral máxima
+  LATERAL_ACCEL: 2100,       // aceleração lateral (responsivo)
+  LATERAL_DECEL: 3000,       // desaceleração ao soltar (pequena inércia, ~12 px)
+  VERTICAL_MAX: 150,
+  VERTICAL_ACCEL: 1100,
+  VERTICAL_DECEL: 1300,
+
+  THROTTLE_UP: 1.15,         // W = acelera um pouco
+  THROTTLE_DOWN: 0.82,       // S = freia um pouco
+  SPEED_ACCEL: 260,          // aceleração suave da velocidade de avanço
+  SPEED_DECEL: 420,          // desaceleração (freio / pancada)
+
+  TILT_MAX_DEG: 9            // inclinação visual nas curvas laterais
+};
+
+// ---------------- Pulo ----------------
+const JUMP = {
+  PREP_DURATION: 0.07,       // preparação (agacha)
+  AIR_DURATION: 0.6,         // tempo no ar
+  HEIGHT: 22,                // altura visual máxima (px)
+  SCALE_BONUS: 0.22,         // quanto o sprite "cresce" no ápice
+  COOLDOWN: 0.3,             // após aterrissar
+  LAND_SQUASH: 0.12
+};
+
+// ---------------- Dash ----------------
+const DASH = {
+  DURATION: 0.22,
+  COOLDOWN: 1.6,
+  SPEED_MULT: 1.7,           // multiplicador da velocidade de avanço
+  LATERAL_SPEED: 620,        // reposicionamento lateral rápido
+  TRAIL_INTERVAL: 0.03,
+  CAMERA_KICK: 6             // "tranco" leve da câmera (px)
+};
+
+// ---------------- Dano / vidas ----------------
+const DAMAGE = {
+  START_LIVES: 3,
+  MAX_LIVES: 5,
+  INVULNERABLE_TIME: 1.1,
+  STUN_TIME: 0.45,           // perda breve de velocidade após batida
+  STUN_SPEED_MULT: 0.55,
+  SEVERE_IS_FATAL: true      // colisão grave = game over (modo Estrada Infinita)
+};
+
+// ---------------- Velocidade global ----------------
+const SPEED = {
+  BASE: 180,                 // TRUCK_SPEED inicial
+  MAX: 470,                  // MAX_SPEED
+  BOOST_MULT: 1.35
+};
+
+// ---------------- Dificuldade ----------------
+// difficulty = tempo * TIME_WEIGHT + (metros / METERS_PER_UNIT) * DISTANCE_WEIGHT
+// Multiplicado por RATE (DIFFICULTY_RATE). Unidade ≈ segundos.
+const DIFFICULTY = {
+  RATE: 1.0,
+  TIME_WEIGHT: 0.6,
+  DISTANCE_WEIGHT: 0.4,
+  METERS_PER_UNIT: 22,
+
+  // Curva configurável. Valores numéricos são interpolados entre
+  // keyframes; listas (pool) são acumulativas pelo keyframe atual.
+  // rowTimeMin/Max = SEGUNDOS entre fileiras de obstáculos (gap em px = tempo * velocidade)
+  CURVE: [
+    { at: 0,   speed: 180, rowTimeMin: 1.70, rowTimeMax: 2.10, maxBlocked: 1, fill: 0.6,
+      jumpRowChance: 0,    animalChance: 0,    pool: ['hole_s', 'cone'] },
+    { at: 30,  speed: 235, rowTimeMin: 1.25, rowTimeMax: 1.55, maxBlocked: 2, fill: 0.7,
+      jumpRowChance: 0,    animalChance: 0.04, pool: ['hole_m', 'rock', 'box', 'tire'] },
+    { at: 60,  speed: 295, rowTimeMin: 1.00, rowTimeMax: 1.25, maxBlocked: 3, fill: 0.8,
+      jumpRowChance: 0.10, animalChance: 0.06, pool: ['hole_l', 'barrier', 'sign', 'log'] },
+    { at: 120, speed: 370, rowTimeMin: 0.85, rowTimeMax: 1.05, maxBlocked: 3, fill: 0.9,
+      jumpRowChance: 0.14, animalChance: 0.07, pool: ['fallen_tree'] },
+    { at: 210, speed: 430, rowTimeMin: 0.78, rowTimeMax: 0.95, maxBlocked: 4, fill: 1.0,
+      jumpRowChance: 0.16, animalChance: 0.08, pool: [] },
+    { at: 320, speed: 470, rowTimeMin: 0.72, rowTimeMax: 0.88, maxBlocked: 4, fill: 1.0,
+      jumpRowChance: 0.18, animalChance: 0.08, pool: [] }
+  ]
+};
+
+// ---------------- Geração procedural ----------------
+const SPAWN = {
+  FIRST_ROW_DELAY_PX: 420,   // pista livre no início (px)
+  REACH_SAFETY: 0.7,         // fração da velocidade lateral considerada "alcançável"
+  ROW_CLEARANCE_PX: 80,      // hitbox do caminhão + maior obstáculo + folga (px)
+  JUMP_ROW_MIN_INTERVAL: 3.2,// segundos mínimos entre fileiras de buraco total
+  JUMP_ROW_LEAD_TIME: 0.95,  // tempo mínimo de leitura antes de uma fileira de pulo
+  JUMP_ROW_EXIT_TIME: 1.15,  // tempo livre após fileira de pulo
+  ANIMAL_EXIT_TIME: 1.0,
+  LANE_JITTER: 6,            // deslocamento horizontal aleatório (fica na faixa)
+  MAX_OBSTACLES: 48          // tamanho do pool
+};
+
+// ---------------- Tipos de obstáculo ----------------
+// lanes: quantas faixas ocupa | jumpable: evitável com pulo
+// severity: 'light' (-1 vida) | 'severe' (grave)
+// hit: proporção da hitbox em relação ao sprite (colisão justa)
+const OBSTACLE_TYPES = {
+  hole_s:      { texture: 'hole_s',      category: 'HOLE',     lanes: 1, jumpable: true,  severity: 'light',  hit: [0.7, 0.6] },
+  hole_m:      { texture: 'hole_m',      category: 'HOLE',     lanes: 1, jumpable: true,  severity: 'light',  hit: [0.72, 0.6] },
+  hole_l:      { texture: 'hole_l',      category: 'HOLE',     lanes: 1, jumpable: true,  severity: 'light',  hit: [0.9, 0.6] },
+  cone:        { texture: 'cone',        category: 'OBSTACLE', lanes: 1, jumpable: true,  severity: 'light',  hit: [0.7, 0.7] },
+  tire:        { texture: 'tire',        category: 'OBSTACLE', lanes: 1, jumpable: true,  severity: 'light',  hit: [0.75, 0.75] },
+  rock:        { texture: 'rock',        category: 'OBSTACLE', lanes: 1, jumpable: false, severity: 'light',  hit: [0.75, 0.7] },
+  box:         { texture: 'box',         category: 'OBSTACLE', lanes: 1, jumpable: false, severity: 'light',  hit: [0.8, 0.8] },
+  sign:        { texture: 'sign',        category: 'OBSTACLE', lanes: 1, jumpable: false, severity: 'light',  hit: [0.7, 0.7] },
+  barrier:     { texture: 'barrier',     category: 'OBSTACLE', lanes: 1, jumpable: false, severity: 'light',  hit: [0.88, 0.7] },
+  log:         { texture: 'log',         category: 'OBSTACLE', lanes: 2, jumpable: true,  severity: 'light',  hit: [0.94, 0.55] },
+  fallen_tree: { texture: 'fallen_tree', category: 'OBSTACLE', lanes: 3, jumpable: false, severity: 'severe', hit: [0.92, 0.6] },
+  animal:      { texture: 'capybara',    category: 'OBSTACLE', lanes: 1, jumpable: false, severity: 'light',  hit: [0.75, 0.7],
+                 anim: 'capy_walk', walkSpeed: 55 }
+};
+
+// Pesos de sorteio por tipo (quanto maior, mais frequente)
+const OBSTACLE_WEIGHTS = {
+  hole_s: 3, hole_m: 3, hole_l: 2, cone: 3, tire: 2, rock: 2, box: 2,
+  sign: 1.5, barrier: 2, log: 1.2, fallen_tree: 0.8, animal: 0
+};
+
+// ---------------- Pontuação ----------------
+const SCORE = {
+  METERS_PER_POINT: 1,       // +1 ponto por metro
+  POINTS_PER_SECOND: 2,      // bônus por tempo sobrevivido
+  DODGE: 10,
+  JUMP_HOLE: 20,
+  GEAR: 15,
+  POWERUP: 25,
+  COMBO_STEP: 5,             // a cada N desvios seguidos, multiplicador +1
+  COMBO_MAX_MULT: 8,
+  TIME_BONUS_PER_SECOND: 25  // modo Contra o Tempo
+};
+
+// ---------------- Power-ups ----------------
+const POWERUPS = {
+  MIN_INTERVAL: 11,          // segundos mínimos entre power-ups
+  CHANCE_PER_ROW: 0.18,
+  TYPES: {
+    shield:     { texture: 'pu_shield', duration: 10, label: 'ESCUDO',  color: 0x6cc7ff, weight: 3 },
+    boost:      { texture: 'pu_boost',  duration: 4,  label: 'BOOST',   color: 0xff9a3c, weight: 3 },
+    repair:     { texture: 'pu_repair', duration: 0,  label: 'REPARO',  color: 0x6ee7a0, weight: 2, livesOnly: true },
+    dash_reset: { texture: 'pu_dash',   duration: 0,  label: 'DASH!',   color: 0xb57bff, weight: 2 },
+    magnet:     { texture: 'pu_magnet', duration: 8,  label: 'ÍMÃ',     color: 0xff5a8a, weight: 2 }
+  },
+  MAGNET_RADIUS: 130,
+  MAGNET_PULL: 520
+};
+
+// ---------------- Coletáveis ----------------
+const COLLECTIBLES = {
+  GEAR_LINE_CHANCE: 0.45,
+  GEAR_LINE_MIN: 3,
+  GEAR_LINE_MAX: 6,
+  GEAR_SPACING: 26,
+  MAX_ACTIVE: 40,
+  TIME_PICKUP_INTERVAL: 6.5, // modo Contra o Tempo
+  TIME_PICKUP_SMALL: 3,
+  TIME_PICKUP_BIG: 5,
+  TIME_PICKUP_BIG_CHANCE: 0.3
+};
+
+// ---------------- Modos ----------------
+const TIME_ATTACK = {
+  START_TIME: 45,
+  COLLISION_PENALTY: 3,
+  SEVERE_PENALTY: 6,
+  MAX_TIME: 99
+};
+
+const ESCAPE = {
+  START_GAP_M: 90,           // distância inicial da tempestade (m)
+  MAX_GAP_M: 140,
+  DANGER_GAP_M: 30,
+  THREAT_FACTOR_START: 0.9,  // velocidade da tempestade relativa à base
+  THREAT_FACTOR_END: 1.1,
+  THREAT_RAMP_TIME: 180,
+  STUN_TIME: 0.9,
+  SEVERE_STUN_TIME: 1.6
+};
+
+// ---------------- Efeitos ----------------
+const FX = {
+  MAX_PARTICLES: 120,
+  SHAKE_HIT: 0.012,
+  SHAKE_FATAL: 0.025,
+  SHAKE_DURATION: 160,
+  SPEEDLINE_THRESHOLD: 0.62  // fração de MAX_SPEED para mostrar linhas de velocidade
+};
+
+return { TRUCK, JUMP, DASH, DAMAGE, SPEED, DIFFICULTY, SPAWN, OBSTACLE_TYPES, OBSTACLE_WEIGHTS, SCORE, POWERUPS, COLLECTIBLES, TIME_ATTACK, ESCAPE, FX };
+})();
+
+// ---- src/art/textureUtils.js ----
+__m['src/art/textureUtils.js'] = (function () {
+// Utilitários para lidar igualmente com texturas procedurais
+// (frames numéricos 0..n) e PNGs externos (frame __BASE).
+
+// Retorna o primeiro frame válido (0 se existir, senão undefined = __BASE)
+function firstFrame(scene, key) {
+  const t = scene.textures.exists(key) ? scene.textures.get(key) : null;
+  return t && t.has(0) ? 0 : undefined;
+}
+
+// Dimensões do primeiro frame
+function frameSize(scene, key) {
+  if (!scene.textures.exists(key)) return { w: 16, h: 16 };
+  const t = scene.textures.get(key);
+  const f = t.has(0) ? t.get(0) : t.get();
+  return { w: f.width, h: f.height };
+}
+
+return { firstFrame, frameSize };
+})();
+
+// ---- src/systems/RoadManager.js ----
+__m['src/systems/RoadManager.js'] = (function () {
+// =============================================================
+// RoadManager.js — rodovia infinita e cenário.
+//  - tiles rolantes (grama, acostamento, asfalto, faixas)
+//  - árvores/vegetação laterais recicladas (pooling)
+//  - marcos de quilometragem e linhas de velocidade
+// Usado na GameScene e como fundo animado do menu.
+// =============================================================
+const { ROAD, GAME_WIDTH, GAME_HEIGHT, DEPTH, DESPAWN_Y } = __m['src/config/gameConfig.js'];
+const { FX, SPEED } = __m['src/config/balance.js'];
+const { firstFrame } = __m['src/art/textureUtils.js'];
+
+const TREE_POOL = 28;
+const DECAL_POOL = 40;
+const SPEEDLINE_POOL = 14;
+
+class RoadManager {
+  constructor(scene, { highContrast = false, speedLines = true } = {}) {
+    this.scene = scene;
+    this.highContrast = highContrast;
+    this.speedLinesEnabled = speedLines;
+    this.time = 0;
+    const H = GAME_HEIGHT;
+    const sh = ROAD.SHOULDER;
+
+    // ---------- camadas rolantes ----------
+    // margem extra horizontal para o leve movimento da câmera
+    this.grassL = scene.add.tileSprite(-20, 0, ROAD.X - sh + 20, H, 'grass').setOrigin(0).setDepth(DEPTH.GRASS);
+    this.grassR = scene.add.tileSprite(ROAD.RIGHT + sh, 0, GAME_WIDTH - ROAD.RIGHT - sh + 20, H, 'grass').setOrigin(0).setDepth(DEPTH.GRASS);
+    this.gravelL = scene.add.tileSprite(ROAD.X - sh, 0, sh, H, 'gravel').setOrigin(0).setDepth(DEPTH.ROAD);
+    this.gravelR = scene.add.tileSprite(ROAD.RIGHT, 0, sh, H, 'gravel').setOrigin(0).setDepth(DEPTH.ROAD);
+    this.asphalt = scene.add.tileSprite(ROAD.X, 0, ROAD.WIDTH, H, 'asphalt').setOrigin(0).setDepth(DEPTH.ROAD);
+
+    this.edges = [
+      scene.add.tileSprite(ROAD.X + 2, 0, 4, H, 'edge_line').setOrigin(0).setDepth(DEPTH.ROAD_MARKS),
+      scene.add.tileSprite(ROAD.RIGHT - 6, 0, 4, H, 'edge_line').setOrigin(0).setDepth(DEPTH.ROAD_MARKS)
+    ];
+    this.dashes = [];
+    for (let i = 1; i < ROAD.LANES; i++) {
+      const x = ROAD.X + i * ROAD.LANE_WIDTH - 2;
+      this.dashes.push(scene.add.tileSprite(x, 0, 4, H, 'lane_dash').setOrigin(0).setDepth(DEPTH.ROAD_MARKS));
+    }
+    this.scrolling = [this.grassL, this.grassR, this.gravelL, this.gravelR, this.asphalt, ...this.edges, ...this.dashes];
+
+    // ---------- pools de cenário ----------
+    this.trees = [];
+    for (let i = 0; i < TREE_POOL; i++) {
+      const t = scene.add.image(0, 0, 'tree_round').setVisible(false).setDepth(DEPTH.TREE);
+      t.active = false; t.phase = 0;
+      this.trees.push(t);
+    }
+    this.decals = [];
+    for (let i = 0; i < DECAL_POOL; i++) {
+      const d = scene.add.image(0, 0, 'tuft').setVisible(false).setDepth(DEPTH.DECAL);
+      d.active = false;
+      this.decals.push(d);
+    }
+    this.speedLines = [];
+    for (let i = 0; i < SPEEDLINE_POOL; i++) {
+      const s = scene.add.image(0, 0, 'speedline').setVisible(false).setDepth(DEPTH.SPEEDLINES).setScale(1, 2);
+      s.active = false;
+      this.speedLines.push(s);
+    }
+    this.kmPost = scene.add.image(ROAD.RIGHT + 5, GAME_HEIGHT + 100, 'km_post').setDepth(DEPTH.DECAL);
+    this.kmText = scene.add.text(ROAD.RIGHT + 12, GAME_HEIGHT + 100, '', {
+      fontFamily: 'monospace', fontSize: '8px', color: '#ffffff'
+    }).setDepth(DEPTH.DECAL).setOrigin(0, 0.5);
+    this.nextKm = 100;
+
+    this.treeTimerL = 0;
+    this.treeTimerR = 0;
+    this.decalTimer = 0;
+    this.applyContrast(highContrast);
+    this._prewarm();
+  }
+
+  // popula a tela inteira no início para não começar vazio
+  _prewarm() {
+    for (let y = -40; y < GAME_HEIGHT + 40; y += 46) {
+      this._spawnTree('L', y + Math.random() * 30);
+      this._spawnTree('R', y + Math.random() * 30);
+    }
+    for (let y = 0; y < GAME_HEIGHT; y += 22) this._spawnDecal(y + Math.random() * 20);
+  }
+
+  _spawnTree(side, y) {
+    const t = this.trees.find((o) => !o.active);
+    if (!t) return;
+    const key = Math.random() < 0.55 ? 'tree_round' : 'tree_pine';
+    const margin = 30;
+    const x = side === 'L'
+      ? Phaser.Math.Between(4, ROAD.X - ROAD.SHOULDER - margin)
+      : Phaser.Math.Between(ROAD.RIGHT + ROAD.SHOULDER + margin, GAME_WIDTH - 4);
+    t.setTexture(key, firstFrame(this.scene, key)).setPosition(x, y).setVisible(true).setAngle(0);
+    t.setScale(0.85 + Math.random() * 0.3);
+    t.baseScale = t.scaleX;
+    t.phase = Math.random() * Math.PI * 2;
+    t.active = true;
+  }
+
+  _spawnDecal(y) {
+    const d = this.decals.find((o) => !o.active);
+    if (!d) return;
+    const r = Math.random();
+    const key = r < 0.4 ? 'tuft' : r < 0.65 ? 'flowers' : r < 0.85 ? 'bush' : 'stone';
+    const left = Math.random() < 0.5;
+    const x = left
+      ? Phaser.Math.Between(4, ROAD.X - ROAD.SHOULDER - 8)
+      : Phaser.Math.Between(ROAD.RIGHT + ROAD.SHOULDER + 8, GAME_WIDTH - 4);
+    d.setTexture(key, firstFrame(this.scene, key)).setPosition(x, y).setVisible(true);
+    d.active = true;
+  }
+
+  /**
+   * @param dt segundos
+   * @param dy deslocamento do mundo (px)
+   * @param speed velocidade atual (para linhas de velocidade)
+   * @param meters distância total (marcos de km)
+   */
+  update(dt, dy, speed = 0, meters = 0) {
+    this.time += dt;
+    for (const s of this.scrolling) s.tilePositionY -= dy;
+
+    // árvores: balanço sutil + reciclagem
+    for (const t of this.trees) {
+      if (!t.active) continue;
+      t.y += dy;
+      t.setAngle(Math.sin(this.time * 1.6 + t.phase) * 2);
+      t.setScale(t.baseScale * (1 + Math.sin(this.time * 2.1 + t.phase) * 0.02));
+      if (t.y > DESPAWN_Y) { t.active = false; t.setVisible(false); }
+    }
+    for (const d of this.decals) {
+      if (!d.active) continue;
+      d.y += dy;
+      if (d.y > DESPAWN_Y) { d.active = false; d.setVisible(false); }
+    }
+
+    this.treeTimerL -= dy;
+    this.treeTimerR -= dy;
+    this.decalTimer -= dy;
+    if (this.treeTimerL <= 0) { this._spawnTree('L', -40); this.treeTimerL = Phaser.Math.Between(34, 70); }
+    if (this.treeTimerR <= 0) { this._spawnTree('R', -40); this.treeTimerR = Phaser.Math.Between(34, 70); }
+    if (this.decalTimer <= 0) { this._spawnDecal(-20); this.decalTimer = Phaser.Math.Between(14, 30); }
+
+    // marco de distância a cada 100 m
+    this.kmPost.y += dy;
+    this.kmText.y = this.kmPost.y;
+    if (meters + 30 >= this.nextKm && this.kmPost.y > GAME_HEIGHT + 20) {
+      this.kmPost.y = -30;
+      this.kmText.y = -30;
+      this.kmText.setText(this.nextKm + 'm');
+      this.nextKm += 100;
+    }
+
+    this._updateSpeedLines(dt, dy, speed);
+  }
+
+  _updateSpeedLines(dt, dy, speed) {
+    const ratio = speed / SPEED.MAX;
+    const show = this.speedLinesEnabled && ratio > FX.SPEEDLINE_THRESHOLD;
+    for (const s of this.speedLines) {
+      if (!s.active) continue;
+      s.y += dy * 1.6;
+      if (s.y > GAME_HEIGHT + 40) { s.active = false; s.setVisible(false); }
+    }
+    if (show && Math.random() < (ratio - FX.SPEEDLINE_THRESHOLD) * 3) {
+      const s = this.speedLines.find((o) => !o.active);
+      if (s) {
+        const left = Math.random() < 0.5;
+        const x = left ? Phaser.Math.Between(10, ROAD.X - 20) : Phaser.Math.Between(ROAD.RIGHT + 20, GAME_WIDTH - 10);
+        s.setPosition(x, -30).setVisible(true).setAlpha(0.35 + Math.random() * 0.3);
+        s.active = true;
+      }
+    }
+  }
+
+  applyContrast(on) {
+    this.highContrast = on;
+    if (on) {
+      this.asphalt.setTint(0x777777);
+      this.grassL.setTint(0x99aa99); this.grassR.setTint(0x99aa99);
+    } else {
+      this.asphalt.clearTint();
+      this.grassL.clearTint(); this.grassR.clearTint();
+    }
+  }
+}
+
+return { RoadManager };
+})();
+
+// ---- src/systems/InputManager.js ----
+__m['src/systems/InputManager.js'] = (function () {
+// =============================================================
+// InputManager.js — camada de abstração de controles.
+// A lógica do jogo só conhece AÇÕES (moveX, jump, dash...),
+// nunca teclas. Provedores: Teclado, Gamepad (Xbox/PlayStation/
+// genérico via Gamepad API) e Toque (estrutura pronta p/ mobile).
+//
+// Uso por cena:
+//   this.inputs = new InputManager(this);
+//   update() { this.inputs.update(); if (this.inputs.justPressed('jump')) ... }
+// =============================================================
+const { DEFAULT_KEY_BINDINGS, DEFAULT_PAD_BINDINGS } = __m['src/config/gameConfig.js'];
+const { StorageManager } = __m['src/systems/StorageManager.js'];
+
+const ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'dash', 'pause', 'confirm', 'back'];
+
+// ---------------- Teclado ----------------
+class KeyboardProvider {
+  constructor(scene, bindings) {
+    this.scene = scene;
+    this.keys = {};
+    const kb = scene.input.keyboard;
+    if (!kb) return;
+    const KC = Phaser.Input.Keyboard.KeyCodes;
+    Object.entries(bindings).forEach(([action, names]) => {
+      this.keys[action] = names
+        .filter((n) => KC[n] !== undefined)
+        .map((n) => kb.addKey(KC[n], true, false));
+    });
+  }
+
+  read(state) {
+    Object.entries(this.keys).forEach(([action, list]) => {
+      if (list.some((k) => k.isDown)) state[action] = true;
+    });
+  }
+
+  reset() {
+    if (this.scene.input.keyboard) this.scene.input.keyboard.resetKeys();
+  }
+
+  destroy() {
+    const kb = this.scene.input.keyboard;
+    if (!kb) return;
+    Object.values(this.keys).flat().forEach((k) => kb.removeKey(k, false));
+    this.keys = {};
+  }
+}
+
+// ---------------- Gamepad ----------------
+class GamepadProvider {
+  constructor(scene, bindings) {
+    this.scene = scene;
+    this.b = bindings;
+  }
+
+  _pad() {
+    const gp = this.scene.input.gamepad;
+    if (!gp || !gp.total) return null;
+    return gp.getPad(0) || null;
+  }
+
+  read(state) {
+    const pad = this._pad();
+    if (!pad || !pad.connected) return;
+    const btn = (i) => pad.buttons[i] && pad.buttons[i].pressed;
+    ACTIONS.forEach((a) => {
+      const list = this.b[a];
+      if (list && list.some(btn)) state[a] = true;
+    });
+    const dz = this.b.stickDeadzone;
+    const sx = pad.leftStick ? pad.leftStick.x : 0;
+    const sy = pad.leftStick ? pad.leftStick.y : 0;
+    if (sx < -dz) state.left = true;
+    if (sx > dz) state.right = true;
+    if (sy < -dz) state.up = true;
+    if (sy > dz) state.down = true;
+    // eixo analógico para movimento proporcional
+    if (Math.abs(sx) > dz) state.axisX = sx;
+    if (Math.abs(sy) > dz) state.axisY = sy;
+  }
+
+  reset() {}
+  destroy() {}
+}
+
+// ---------------- Toque (mobile) ----------------
+// Botões virtuais: ◀ ▶ (esquerda/baixo), PULO e DASH (direita), II (pausa).
+// Ativado automaticamente em dispositivos com toque, apenas na GameScene.
+class TouchProvider {
+  constructor(scene, enabled) {
+    this.scene = scene;
+    this.held = {};
+    this.objects = [];
+    if (!enabled) return;
+    scene.input.addPointer(2);
+    const W = scene.scale.gameSize.width;
+    const H = scene.scale.gameSize.height;
+    const mk = (x, y, action, label, scale = 1) => {
+      const img = scene.add.image(x, y, 'touch_btn').setScale(scale).setScrollFactor(0)
+        .setDepth(60).setAlpha(0.75).setInteractive();
+      const txt = scene.add.text(x, y, label, { fontFamily: 'monospace', fontSize: '12px', color: '#ffffff' })
+        .setOrigin(0.5).setScrollFactor(0).setDepth(61);
+      const on = () => { this.held[action] = true; img.setAlpha(1); };
+      const off = () => { this.held[action] = false; img.setAlpha(0.75); };
+      img.on('pointerdown', on);
+      img.on('pointerup', off);
+      img.on('pointerout', off);
+      this.objects.push(img, txt);
+    };
+    mk(40, H - 40, 'left', '<', 1.4);
+    mk(110, H - 40, 'right', '>', 1.4);
+    mk(W - 110, H - 40, 'dash', 'DASH', 1.4);
+    mk(W - 40, H - 70, 'jump', 'PULO', 1.4);
+    mk(W - 24, 60, 'pause', 'II', 0.8);
+  }
+
+  read(state) {
+    Object.entries(this.held).forEach(([a, v]) => { if (v) state[a] = true; });
+  }
+
+  reset() { this.held = {}; }
+  destroy() { this.objects.forEach((o) => o.destroy()); this.objects = []; }
+}
+
+// ---------------- Gerenciador ----------------
+class InputManager {
+  constructor(scene, { touchControls = false } = {}) {
+    this.scene = scene;
+    const settings = StorageManager.getSettings();
+    const bindings = settings.keyBindings || DEFAULT_KEY_BINDINGS;
+    const isTouch = !!(scene.sys.game.device.input.touch);
+    this.providers = [
+      new KeyboardProvider(scene, bindings),
+      new GamepadProvider(scene, DEFAULT_PAD_BINDINGS),
+      new TouchProvider(scene, touchControls && isTouch)
+    ];
+    this.state = this._blank();
+    this.prev = this._blank();
+    // Ações já pressionadas na criação precisam ser soltas antes
+    // de contar como "justPressed" (evita vazamento entre cenas).
+    this._primed = false;
+    this.enabled = true;
+
+    this._onResume = () => this.resetHeld();
+    this._onShutdown = () => this.destroy();
+    scene.events.on('resume', this._onResume);
+    scene.events.once('shutdown', this._onShutdown);
+  }
+
+  _blank() {
+    const s = { axisX: 0, axisY: 0 };
+    ACTIONS.forEach((a) => { s[a] = false; });
+    return s;
+  }
+
+  update() {
+    const tmp = this.prev;
+    this.prev = this.state;
+    this.state = tmp;
+    ACTIONS.forEach((a) => { this.state[a] = false; });
+    this.state.axisX = 0; this.state.axisY = 0;
+    if (this.enabled) this.providers.forEach((p) => p.read(this.state));
+    if (!this._primed) {
+      // primeiro frame: copia o estado atual para prev
+      ACTIONS.forEach((a) => { this.prev[a] = this.state[a]; });
+      this._primed = true;
+    }
+  }
+
+  isDown(action) { return !!this.state[action]; }
+
+  justPressed(action) { return !!this.state[action] && !this.prev[action]; }
+
+  // Movimento contínuo -1..1 (analógico quando disponível)
+  get moveX() {
+    if (this.state.axisX) return this.state.axisX;
+    return (this.state.right ? 1 : 0) - (this.state.left ? 1 : 0);
+  }
+
+  get moveY() {
+    if (this.state.axisY) return this.state.axisY;
+    return (this.state.down ? 1 : 0) - (this.state.up ? 1 : 0);
+  }
+
+  // Após retomar a cena, ignora teclas que estavam presas
+  resetHeld() {
+    this.providers.forEach((p) => p.reset());
+    this._primed = false;
+  }
+
+  destroy() {
+    this.providers.forEach((p) => p.destroy());
+    this.providers = [];
+    this.scene.events.off('resume', this._onResume);
+    this.scene.events.off('shutdown', this._onShutdown);
+  }
+}
+
+return { ACTIONS, InputManager };
+})();
+
+// ---- src/ui/UIFactory.js ----
+__m['src/ui/UIFactory.js'] = (function () {
+// =============================================================
+// UIFactory.js — helpers de interface em estilo pixel art
+// (textos, painéis com borda, fundo animado).
+// =============================================================
+const { FONT, UI_COLORS, GAME_WIDTH, GAME_HEIGHT } = __m['src/config/gameConfig.js'];
+
+function pixelText(scene, x, y, text, { size = FONT.SMALL, color = UI_COLORS.TEXT, align = 'center',
+  origin = 0.5, stroke = true, wrap = 0 } = {}) {
+  const style = {
+    fontFamily: FONT.FAMILY,
+    fontSize: size,
+    color,
+    align,
+    lineSpacing: 6
+  };
+  if (stroke) { style.stroke = '#14121f'; style.strokeThickness = 4; }
+  if (wrap) style.wordWrap = { width: wrap };
+  return scene.add.text(Math.round(x), Math.round(y), text, style).setOrigin(origin);
+}
+
+function panel(scene, x, y, w, h, { fill = UI_COLORS.PANEL, border = UI_COLORS.PANEL_BORDER, alpha = 0.92 } = {}) {
+  const g = scene.add.graphics();
+  const L = Math.round(x - w / 2), T = Math.round(y - h / 2);
+  g.fillStyle(0x000000, 0.35).fillRect(L + 4, T + 4, w, h);           // sombra
+  g.fillStyle(fill, alpha).fillRect(L, T, w, h);
+  g.lineStyle(2, border, 1).strokeRect(L + 1, T + 1, w - 2, h - 2);
+  g.fillStyle(border, 1);                                               // cantos "pixelados"
+  [[L, T], [L + w - 4, T], [L, T + h - 4], [L + w - 4, T + h - 4]].forEach(([cx, cy]) => g.fillRect(cx, cy, 4, 4));
+  return g;
+}
+
+function dimBackground(scene, alpha = 0.6) {
+  return scene.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0b0a14, alpha);
+}
+
+// Rodapé com dica de controles
+function footerHint(scene, text) {
+  return pixelText(scene, GAME_WIDTH / 2, GAME_HEIGHT - 14, text, { color: UI_COLORS.TEXT_DIM, stroke: false });
+}
+
+// Reseta efeitos de câmera (fade/shake de cenas anteriores) e faz fade-in
+function prepareCamera(scene, fadeMs = 200) {
+  const cam = scene.cameras.main;
+  cam.resetFX();
+  cam.setScroll(0, 0);
+  if (fadeMs > 0) cam.fadeIn(fadeMs, 11, 10, 20);
+  return cam;
+}
+
+return { pixelText, panel, dimBackground, footerHint, prepareCamera };
+})();
+
+// ---- src/ui/MenuList.js ----
+__m['src/ui/MenuList.js'] = (function () {
+// =============================================================
+// MenuList.js — lista de opções navegável por teclado, gamepad
+// e mouse/toque. Itens podem ter valor ajustável (◀ ▶).
+//
+// item = { label: string | () => string, onSelect?(), onLeft?(), onRight?(), disabled? }
+// =============================================================
+const { FONT, UI_COLORS } = __m['src/config/gameConfig.js'];
+const { pixelText } = __m['src/ui/UIFactory.js'];
+const { SFXManager } = __m['src/systems/AudioManager.js'];
+
+class MenuList {
+  constructor(scene, x, y, items, { spacing = 22, size = FONT.SMALL, inputs, onBack = null, startIndex = 0 } = {}) {
+    this.scene = scene;
+    this.items = items;
+    this.inputs = inputs;
+    this.onBack = onBack;
+    this.index = Math.min(startIndex, items.length - 1);
+    this.texts = items.map((it, i) => {
+      const t = pixelText(scene, x, y + i * spacing, this._label(it), { size });
+      t.setInteractive({ useHandCursor: true });
+      t.on('pointerover', () => this.select(i, true));
+      t.on('pointerdown', (pointer) => {
+        this.select(i, false);
+        // clique nas laterais de itens ajustáveis altera o valor
+        if ((it.onLeft || it.onRight) && pointer) {
+          const local = pointer.x - (t.x - t.width / 2);
+          if (local < t.width * 0.3 && it.onLeft) { it.onLeft(); this._refresh(); SFXManager.play('uiMove'); return; }
+          if (local > t.width * 0.7 && it.onRight) { it.onRight(); this._refresh(); SFXManager.play('uiMove'); return; }
+        }
+        this.activate();
+      });
+      return t;
+    });
+    this.cursor = pixelText(scene, 0, 0, '>', { size, color: UI_COLORS.ACCENT });
+    this.cursorT = 0;
+    this._refresh();
+  }
+
+  _label(it) { return typeof it.label === 'function' ? it.label() : it.label; }
+
+  select(i, silent = false) {
+    if (i === this.index) return;
+    this.index = i;
+    if (!silent) SFXManager.play('uiMove');
+    this._refresh();
+  }
+
+  move(d) {
+    const n = this.items.length;
+    let i = this.index;
+    for (let k = 0; k < n; k++) {
+      i = (i + d + n) % n;
+      if (!this.items[i].disabled) break;
+    }
+    this.index = i;
+    SFXManager.play('uiMove');
+    this._refresh();
+  }
+
+  activate() {
+    const it = this.items[this.index];
+    if (!it || it.disabled) return;
+    SFXManager.play('ui');
+    if (it.onSelect) it.onSelect();
+    else if (it.onRight) it.onRight();
+    this._refresh();
+  }
+
+  _refresh() {
+    this.texts.forEach((t, i) => {
+      const it = this.items[i];
+      t.setText(this._label(it));
+      t.setColor(it.disabled ? UI_COLORS.TEXT_DIM : i === this.index ? UI_COLORS.ACCENT : UI_COLORS.TEXT);
+    });
+    const sel = this.texts[this.index];
+    if (sel) this.cursor.setPosition(Math.round(sel.x - sel.width / 2 - 14), sel.y);
+  }
+
+  update(dt = 0.016) {
+    const inp = this.inputs;
+    if (inp) {
+      if (inp.justPressed('up')) this.move(-1);
+      if (inp.justPressed('down')) this.move(1);
+      const it = this.items[this.index];
+      if (it && inp.justPressed('left') && it.onLeft) { it.onLeft(); SFXManager.play('uiMove'); this._refresh(); }
+      if (it && inp.justPressed('right') && it.onRight) { it.onRight(); SFXManager.play('uiMove'); this._refresh(); }
+      if (inp.justPressed('confirm')) this.activate();
+      else if (inp.justPressed('back') && this.onBack) { SFXManager.play('ui'); this.onBack(); }
+    }
+    // cursor pulsando
+    this.cursorT += dt;
+    const sel = this.texts[this.index];
+    if (sel) this.cursor.x = Math.round(sel.x - sel.width / 2 - 14 + Math.sin(this.cursorT * 8) * 2);
+  }
+
+  refresh() { this._refresh(); }
+
+  destroy() {
+    this.texts.forEach((t) => t.destroy());
+    this.cursor.destroy();
+  }
+}
+
+return { MenuList };
+})();
+
+// ---- src/scenes/MenuScene.js ----
+__m['src/scenes/MenuScene.js'] = (function () {
+// =============================================================
+// MenuScene — estado MENU. Logo, fundo animado da rodovia e
+// opções: JOGAR, MODOS DE JOGO, COMO JOGAR, CONFIGURAÇÕES, CRÉDITOS.
+// =============================================================
+const { SCENES, GAME_STATE, GAME_WIDTH, GAME_HEIGHT, FONT, UI_COLORS, GAME_TITLE, GAME_VERSION, DEPTH } = __m['src/config/gameConfig.js'];
+const { RoadManager } = __m['src/systems/RoadManager.js'];
+const { InputManager } = __m['src/systems/InputManager.js'];
+const { MusicManager } = __m['src/systems/AudioManager.js'];
+const { StorageManager } = __m['src/systems/StorageManager.js'];
+const { MenuList } = __m['src/ui/MenuList.js'];
+const { pixelText, panel, footerHint, prepareCamera } = __m['src/ui/UIFactory.js'];
+
+class MenuScene extends Phaser.Scene {
+  constructor() { super(SCENES.MENU); }
+
+  create() {
+    this.registry.set('state', GAME_STATE.MENU);
+    prepareCamera(this);
+    const settings = StorageManager.getSettings();
+    this.road = new RoadManager(this, { highContrast: settings.highContrast, speedLines: false });
+
+    // caminhão de demonstração "dirigindo"
+    this.demoTruck = this.add.sprite(GAME_WIDTH / 2 + 96, 290, 'truck', 0).setDepth(DEPTH.TRUCK);
+    if (this.anims.exists('truck_drive')) this.demoTruck.play('truck_drive');
+    this.demoShadow = this.add.image(this.demoTruck.x + 3, this.demoTruck.y + 4, 'truck_shadow').setDepth(DEPTH.TRUCK_SHADOW);
+    this.t = 0;
+
+    // escurece levemente o fundo
+    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0b0a14, 0.35).setDepth(50);
+
+    // ---------- logo ----------
+    const logoY = 62;
+    const logo = pixelText(this, GAME_WIDTH / 2, logoY, GAME_TITLE, { size: FONT.HUGE, color: UI_COLORS.ACCENT })
+      .setDepth(55).setStroke('#14121f', 8);
+    const sub = pixelText(this, GAME_WIDTH / 2, logoY + 32, 'ARCADE DE ESTRADA', { color: UI_COLORS.INFO }).setDepth(55);
+    this.tweens.add({ targets: logo, y: logoY - 3, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    this.tweens.add({ targets: sub, alpha: 0.6, duration: 700, yoyo: true, repeat: -1 });
+
+    panel(this, GAME_WIDTH / 2, 205, 260, 136).setDepth(52);
+
+    this.inputs = new InputManager(this);
+    this.leaving = false;
+    const go = (key, data) => {
+      if (this.leaving) return;
+      this.leaving = true;
+      this.cameras.main.fadeOut(160, 11, 10, 20);
+      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(key, data));
+    };
+    this.menu = new MenuList(this, GAME_WIDTH / 2, 160, [
+      { label: 'JOGAR', onSelect: () => go(SCENES.MODE_SELECT) },
+      { label: 'MODOS DE JOGO', onSelect: () => go(SCENES.MODE_SELECT, { info: true }) },
+      { label: 'COMO JOGAR', onSelect: () => go(SCENES.HOW_TO) },
+      { label: 'CONFIGURAÇÕES', onSelect: () => go(SCENES.SETTINGS) },
+      { label: 'CRÉDITOS', onSelect: () => go(SCENES.CREDITS) }
+    ], { inputs: this.inputs, spacing: 22 });
+    [...this.menu.texts, this.menu.cursor].forEach((t) => t.setDepth(56));
+
+    const rec = StorageManager.getRecord('endless');
+    pixelText(this, GAME_WIDTH / 2, 292, `RECORDE: ${rec.score}  |  ${rec.distance} m`, { color: UI_COLORS.TEXT_DIM }).setDepth(55);
+    footerHint(this, 'SETAS/WASD  NAVEGAR   ENTER  SELECIONAR').setDepth(55);
+    pixelText(this, GAME_WIDTH - 6, GAME_HEIGHT - 6, 'v' + GAME_VERSION, { color: UI_COLORS.TEXT_DIM, stroke: false, origin: 1 }).setDepth(55);
+
+    MusicManager.play('menu');
+  }
+
+  update(time, delta) {
+    const dt = Math.min(delta / 1000, 0.05);
+    this.t += dt;
+    this.inputs.update();
+    if (!this.leaving) this.menu.update(dt);
+    this.road.update(dt, 160 * dt, 160, 0);
+    // caminhão "dançando" entre faixas
+    this.demoTruck.x = GAME_WIDTH / 2 + 96 + Math.sin(this.t * 0.8) * 60;
+    this.demoTruck.angle = Math.cos(this.t * 0.8) * 4;
+    this.demoShadow.setPosition(this.demoTruck.x + 3, this.demoTruck.y + 4);
+  }
+}
+
+return { MenuScene };
+})();
+
+// ---- src/scenes/ModeSelectScene.js ----
+__m['src/scenes/ModeSelectScene.js'] = (function () {
+// =============================================================
+// ModeSelectScene — estado MODE_SELECT. Três cartões de modo.
+// ◀ ▶ escolhe, ENTER inicia, ESC volta.
+// =============================================================
+const { SCENES, GAME_STATE, GAME_WIDTH, GAME_HEIGHT, FONT, UI_COLORS } = __m['src/config/gameConfig.js'];
+const { MODES, MODE_ORDER } = __m['src/config/modes.js'];
+const { InputManager } = __m['src/systems/InputManager.js'];
+const { StorageManager } = __m['src/systems/StorageManager.js'];
+const { SFXManager } = __m['src/systems/AudioManager.js'];
+const { pixelText, panel, footerHint, prepareCamera } = __m['src/ui/UIFactory.js'];
+const { firstFrame } = __m['src/art/textureUtils.js'];
+
+const CARD_W = 184;
+const CARD_H = 196;
+
+class ModeSelectScene extends Phaser.Scene {
+  constructor() { super(SCENES.MODE_SELECT); }
+
+  init(data) {
+    this.index = Math.max(0, MODE_ORDER.indexOf(this.registry.get('lastMode') || 'endless'));
+    this.infoMode = !!(data && data.info);
+  }
+
+  create() {
+    this.registry.set('state', GAME_STATE.MODE_SELECT);
+    prepareCamera(this);
+    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x14121f);
+    this._stripes();
+
+    pixelText(this, GAME_WIDTH / 2, 30, this.infoMode ? 'MODOS DE JOGO' : 'ESCOLHA O MODO', { size: FONT.MEDIUM, color: UI_COLORS.ACCENT });
+
+    this.cards = MODE_ORDER.map((id, i) => this._card(id, 116 + i * 204, 170));
+    this.inputs = new InputManager(this);
+
+    footerHint(this, '< > ESCOLHER   ENTER JOGAR   ESC VOLTAR');
+    this.starting = false;
+    this._highlight();
+  }
+
+  _stripes() {
+    const g = this.add.graphics();
+    g.fillStyle(0x1f1d33, 1);
+    for (let i = -GAME_HEIGHT; i < GAME_WIDTH; i += 32) {
+      g.fillTriangle(i, GAME_HEIGHT, i + 16, GAME_HEIGHT, i + GAME_HEIGHT + 16, 0);
+      g.fillTriangle(i, GAME_HEIGHT, i + GAME_HEIGHT, 0, i + GAME_HEIGHT + 16, 0);
+    }
+    g.setAlpha(0.35);
+  }
+
+  _card(id, x, y) {
+    const mode = MODES[id];
+    const c = this.add.container(x, y);
+    const g = panel(this, 0, 0, CARD_W, CARD_H, { border: mode.color });
+    const title = pixelText(this, 0, -CARD_H / 2 + 22, mode.name, { color: UI_COLORS.TEXT, wrap: CARD_W - 16 });
+    const iconKey = id === 'timeattack' ? 'clock_l' : id === 'escape' ? 'storm_edge' : 'truck';
+    const icon = this.add.sprite(0, -42, iconKey, firstFrame(this, iconKey));
+    icon.setScale(id === 'timeattack' ? 2 : id === 'escape' ? 0.9 : 0.8);
+    const desc = pixelText(this, 0, 20, mode.description.join('\n'), { color: UI_COLORS.TEXT_DIM, stroke: false });
+    desc.setLineSpacing(6);
+    const rec = StorageManager.getRecord(id);
+    const recT = pixelText(this, 0, CARD_H / 2 - 22, `RECORDE ${rec.score}\n${rec.distance} m`, { color: UI_COLORS.ACCENT, stroke: false });
+    c.add([g, title, icon, desc, recT]);
+    // setSize + setInteractive() padrão: área de clique = cartão inteiro
+    c.setSize(CARD_W, CARD_H);
+    c.setInteractive({ useHandCursor: true });
+    c.on('pointerover', () => { const i = MODE_ORDER.indexOf(id); if (i !== this.index) { this.index = i; SFXManager.play('uiMove'); this._highlight(); } });
+    c.on('pointerdown', () => { this.index = MODE_ORDER.indexOf(id); this._start(); });
+    return c;
+  }
+
+  _highlight() {
+    this.cards.forEach((c, i) => {
+      const sel = i === this.index;
+      this.tweens.killTweensOf(c);
+      this.tweens.add({ targets: c, scale: sel ? 1.06 : 0.94, alpha: sel ? 1 : 0.6, duration: 120 });
+    });
+  }
+
+  _start() {
+    if (this.starting) return;
+    this.starting = true;
+    SFXManager.play('ui');
+    const mode = MODE_ORDER[this.index];
+    this.registry.set('lastMode', mode);
+    this.cameras.main.fadeOut(180, 11, 10, 20);
+    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(SCENES.GAME, { mode }));
+  }
+
+  update() {
+    this.inputs.update();
+    if (this.starting) return;
+    const n = MODE_ORDER.length;
+    if (this.inputs.justPressed('left') || this.inputs.justPressed('up')) {
+      this.index = (this.index - 1 + n) % n; SFXManager.play('uiMove'); this._highlight();
+    }
+    if (this.inputs.justPressed('right') || this.inputs.justPressed('down')) {
+      this.index = (this.index + 1) % n; SFXManager.play('uiMove'); this._highlight();
+    }
+    if (this.inputs.justPressed('confirm')) this._start();
+    if (this.inputs.justPressed('back')) {
+      SFXManager.play('ui');
+      this.scene.start(SCENES.MENU);
+    }
+  }
+}
+
+return { ModeSelectScene };
+})();
+
+// ---- src/scenes/HowToPlayScene.js ----
+__m['src/scenes/HowToPlayScene.js'] = (function () {
+// =============================================================
+// HowToPlayScene — controles e objetivo, com ícones do jogo.
+// =============================================================
+const { SCENES, GAME_WIDTH, GAME_HEIGHT, FONT, UI_COLORS } = __m['src/config/gameConfig.js'];
+const { InputManager } = __m['src/systems/InputManager.js'];
+const { SFXManager } = __m['src/systems/AudioManager.js'];
+const { pixelText, panel, footerHint, prepareCamera } = __m['src/ui/UIFactory.js'];
+const { firstFrame } = __m['src/art/textureUtils.js'];
+
+class HowToPlayScene extends Phaser.Scene {
+  constructor() { super(SCENES.HOW_TO); }
+
+  create() {
+    prepareCamera(this);
+    const cx = GAME_WIDTH / 2;
+    this.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x14121f);
+    panel(this, cx, 180, 560, 300);
+    pixelText(this, cx, 22, 'COMO JOGAR', { size: FONT.MEDIUM, color: UI_COLORS.ACCENT });
+
+    const controls = [
+      ['SETAS / WASD', 'MOVER'],
+      ['ESPAÇO', 'PULAR'],
+      ['SHIFT', 'DASH'],
+      ['ESC', 'PAUSA'],
+      ['ENTER', 'SELECIONAR / REINICIAR']
+    ];
+    controls.forEach(([k, v], i) => {
+      const y = 56 + i * 20;
+      pixelText(this, cx - 30, y, k, { origin: 0, color: UI_COLORS.ACCENT, stroke: false }).setOrigin(1, 0.5);
+      pixelText(this, cx - 10, y, '= ' + v, { origin: 0, color: UI_COLORS.TEXT, stroke: false }).setOrigin(0, 0.5);
+    });
+
+    pixelText(this, cx, 166,
+      'OBJETIVO: Desvie dos obstáculos, percorra a maior\ndistância possível e consiga a maior pontuação.',
+      { color: UI_COLORS.TEXT, stroke: false });
+
+    // legenda visual
+    const legend = [
+      ['hole_m', 'BURACO: PULE'],
+      ['cone', 'PEQUENO: PULÁVEL'],
+      ['barrier', 'BARREIRA: DESVIE'],
+      ['gear', 'ENGRENAGEM: PONTOS'],
+      ['pu_shield', 'POWER-UP']
+    ];
+    legend.forEach(([key, label], i) => {
+      const x = cx - 220 + i * 110;
+      this.add.image(x, 214, key, firstFrame(this, key)).setScale(key === 'barrier' ? 0.8 : 1.2);
+      pixelText(this, x, 240, label.replace(': ', ':\n'), { color: UI_COLORS.TEXT_DIM, stroke: false });
+    });
+    pixelText(this, cx, 290, 'Buracos só machucam se o caminhão estiver no chão.\nDesvios seguidos aumentam o COMBO (x2, x3, x4...).',
+      { color: UI_COLORS.INFO, stroke: false });
+
+    this.inputs = new InputManager(this);
+    footerHint(this, 'ENTER / ESC  VOLTAR');
+    this.input.once('pointerdown', () => this._back());
+  }
+
+  _back() {
+    SFXManager.play('ui');
+    this.scene.start(SCENES.MENU);
+  }
+
+  update() {
+    this.inputs.update();
+    if (this.inputs.justPressed('back') || this.inputs.justPressed('confirm')) this._back();
+  }
+}
+
+return { HowToPlayScene };
+})();
+
+// ---- src/scenes/SettingsScene.js ----
+__m['src/scenes/SettingsScene.js'] = (function () {
+// =============================================================
+// SettingsScene — áudio e ACESSIBILIDADE (salvos no localStorage).
+// ◀ ▶ ou ENTER alteram valores. ESC volta.
+// =============================================================
+const { SCENES, GAME_WIDTH, GAME_HEIGHT, FONT, UI_COLORS } = __m['src/config/gameConfig.js'];
+const { InputManager } = __m['src/systems/InputManager.js'];
+const { StorageManager } = __m['src/systems/StorageManager.js'];
+const { AudioManager, MusicManager } = __m['src/systems/AudioManager.js'];
+const { MenuList } = __m['src/ui/MenuList.js'];
+const { pixelText, panel, footerHint, prepareCamera } = __m['src/ui/UIFactory.js'];
+
+const SHAKE_MODES = ['normal', 'reduced', 'off'];
+const SHAKE_LABEL = { normal: 'NORMAL', reduced: 'REDUZIDO', off: 'DESLIGADO' };
+const onOff = (v) => (v ? 'ON' : 'OFF');
+
+class SettingsScene extends Phaser.Scene {
+  constructor() { super(SCENES.SETTINGS); }
+
+  create() {
+    prepareCamera(this);
+    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x14121f);
+    panel(this, GAME_WIDTH / 2, 182, 420, 300);
+    pixelText(this, GAME_WIDTH / 2, 22, 'CONFIGURAÇÕES', { size: FONT.MEDIUM, color: UI_COLORS.ACCENT });
+
+    const S = () => StorageManager.getSettings();
+    const set = (patch) => { StorageManager.updateSettings(patch); AudioManager.applySettings(); };
+    const toggle = (key) => () => set({ [key]: !S()[key] });
+    const vol = (d) => () => set({ masterVolume: Math.round(Phaser.Math.Clamp(S().masterVolume + d, 0, 1) * 10) / 10 });
+    const shake = (d) => () => {
+      const i = SHAKE_MODES.indexOf(S().shake);
+      set({ shake: SHAKE_MODES[(i + d + SHAKE_MODES.length) % SHAKE_MODES.length] });
+    };
+    this.confirmReset = false;
+
+    this.inputs = new InputManager(this);
+    this.menu = new MenuList(this, GAME_WIDTH / 2, 56, [
+      { label: () => `MÚSICA: ${onOff(S().musicOn)}`, onLeft: toggle('musicOn'), onRight: toggle('musicOn') },
+      { label: () => `EFEITOS SONOROS: ${onOff(S().sfxOn)}`, onLeft: toggle('sfxOn'), onRight: toggle('sfxOn') },
+      { label: () => `VOLUME: < ${Math.round(S().masterVolume * 100)}% >`, onLeft: vol(-0.1), onRight: vol(0.1) },
+      { label: () => `TREMOR DE TELA: ${SHAKE_LABEL[S().shake]}`, onLeft: shake(-1), onRight: shake(1) },
+      { label: () => `ALTO CONTRASTE: ${onOff(S().highContrast)}`, onLeft: toggle('highContrast'), onRight: toggle('highContrast') },
+      { label: () => `PARTÍCULAS/RASTRO: ${onOff(S().particles)}`, onLeft: toggle('particles'), onRight: toggle('particles') },
+      { label: () => `FLASHES DE TELA: ${onOff(S().flashes)}`, onLeft: toggle('flashes'), onRight: toggle('flashes') },
+      { label: () => `MOSTRAR FPS: ${onOff(S().showFps)}`, onLeft: toggle('showFps'), onRight: toggle('showFps') },
+      {
+        label: () => (this.confirmReset ? 'CONFIRMAR? ENTER APAGA' : 'APAGAR RECORDES'),
+        onSelect: () => {
+          if (!this.confirmReset) { this.confirmReset = true; return; }
+          StorageManager.resetRecords();
+          this.confirmReset = false;
+          this.toast('RECORDES APAGADOS');
+        }
+      },
+      { label: 'VOLTAR', onSelect: () => this._back() }
+    ], { inputs: this.inputs, spacing: 25, onBack: () => this._back() });
+
+    pixelText(this, GAME_WIDTH / 2, 322, 'Remapeamento de teclas: em breve', { color: UI_COLORS.TEXT_DIM, stroke: false });
+    footerHint(this, '< > ALTERAR   ENTER SELECIONAR   ESC VOLTAR');
+    this.toastT = pixelText(this, GAME_WIDTH / 2, 306, '', { color: UI_COLORS.GOOD }).setAlpha(0);
+    MusicManager.play('menu');
+  }
+
+  toast(msg) {
+    this.toastT.setText(msg).setAlpha(1);
+    this.tweens.add({ targets: this.toastT, alpha: 0, delay: 1200, duration: 400 });
+  }
+
+  _back() { this.scene.start(SCENES.MENU); }
+
+  update(time, delta) {
+    this.inputs.update();
+    const prevIndex = this.menu.index;
+    this.menu.update(delta / 1000);
+    if (this.menu.index !== prevIndex && this.confirmReset) { this.confirmReset = false; this.menu.refresh(); }
+  }
+}
+
+return { SettingsScene };
+})();
+
+// ---- src/scenes/CreditsScene.js ----
+__m['src/scenes/CreditsScene.js'] = (function () {
+// =============================================================
+// CreditsScene — créditos e aviso de originalidade.
+// =============================================================
+const { SCENES, GAME_WIDTH, GAME_HEIGHT, FONT, UI_COLORS, GAME_TITLE, GAME_VERSION } = __m['src/config/gameConfig.js'];
+const { InputManager } = __m['src/systems/InputManager.js'];
+const { SFXManager } = __m['src/systems/AudioManager.js'];
+const { pixelText, panel, footerHint, prepareCamera } = __m['src/ui/UIFactory.js'];
+
+class CreditsScene extends Phaser.Scene {
+  constructor() { super(SCENES.CREDITS); }
+
+  create() {
+    prepareCamera(this);
+    const cx = GAME_WIDTH / 2;
+    this.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x14121f);
+    panel(this, cx, 180, 500, 280);
+    pixelText(this, cx, 22, 'CRÉDITOS', { size: FONT.MEDIUM, color: UI_COLORS.ACCENT });
+
+    const lines = [
+      [`${GAME_TITLE}  v${GAME_VERSION}`, UI_COLORS.TEXT],
+      ['', null],
+      ['GAME DESIGN E CÓDIGO', UI_COLORS.ACCENT],
+      ['Projeto original em Phaser 3', UI_COLORS.TEXT],
+      ['', null],
+      ['PIXEL ART E ÁUDIO', UI_COLORS.ACCENT],
+      ['Gerados proceduralmente (originais)', UI_COLORS.TEXT],
+      ['', null],
+      ['ENGINE', UI_COLORS.ACCENT],
+      ['Phaser 3 (MIT License)', UI_COLORS.TEXT],
+      ['', null],
+      ['Inspirado no gênero arcade de "jogo rápido".', UI_COLORS.TEXT_DIM],
+      ['Nenhum asset, código ou marca de terceiros.', UI_COLORS.TEXT_DIM]
+    ];
+    lines.forEach(([t, c], i) => {
+      if (t) pixelText(this, cx, 60 + i * 18, t, { color: c, stroke: false });
+    });
+
+    const truck = this.add.sprite(-30, 330, 'truck', 0).setAngle(90);
+    if (this.anims.exists('truck_drive')) truck.play('truck_drive');
+    this.tweens.add({ targets: truck, x: GAME_WIDTH + 30, duration: 5000, repeat: -1 });
+
+    this.inputs = new InputManager(this);
+    footerHint(this, 'ENTER / ESC  VOLTAR');
+    this.input.once('pointerdown', () => this._back());
+  }
+
+  _back() {
+    SFXManager.play('ui');
+    this.scene.start(SCENES.MENU);
+  }
+
+  update() {
+    this.inputs.update();
+    if (this.inputs.justPressed('back') || this.inputs.justPressed('confirm')) this._back();
+  }
+}
+
+return { CreditsScene };
+})();
+
+// ---- src/entities/Truck.js ----
+__m['src/entities/Truck.js'] = (function () {
+// =============================================================
+// Truck.js — SOMENTE o comportamento do caminhão (movimento,
+// pulo, dash, estados de dano/power-up) + sua apresentação.
+// Não conhece teclas: recebe ações do InputManager.
+// Emite eventos na cena: truck:jump, truck:land, truck:dash, truck:edge
+// =============================================================
+const { TRUCK, JUMP, DASH, DAMAGE, SPEED } = __m['src/config/balance.js'];
+const { ROAD, DEPTH } = __m['src/config/gameConfig.js'];
+
+const GHOSTS = 6;
+
+class Truck {
+  constructor(scene, x, y) {
+    this.scene = scene;
+    this.x = x;
+    this.y = y;
+    this.vx = 0;
+    this.vy = 0;
+    this.speed = SPEED.BASE;      // velocidade de avanço (px/s) = rolagem do mundo
+    this.z = 0;                   // altura do pulo
+
+    this.jumpState = 'ground';    // ground | prep | air
+    this.jumpTimer = 0;
+    this.jumpCooldown = 0;
+    this.landTimer = 0;
+
+    this.dashTimer = 0;
+    this.dashCooldown = 0;
+    this.dashDir = 0;
+    this.trailTimer = 0;
+
+    this.invulnTimer = 0;
+    this.stunTimer = 0;
+    this.hitFlashTimer = 0;
+    this.boostTimer = 0;
+    this.shieldTimer = 0;
+    this.magnetTimer = 0;
+    this.alive = true;
+    this.trailEnabled = true;
+    this._edgeCooldown = 0;
+
+    this.minX = ROAD.X + ROAD.EDGE_MARGIN + TRUCK.HITBOX_W / 2;
+    this.maxX = ROAD.RIGHT - ROAD.EDGE_MARGIN - TRUCK.HITBOX_W / 2;
+
+    this.hitbox = new Phaser.Geom.Rectangle(0, 0, TRUCK.HITBOX_W, TRUCK.HITBOX_H);
+
+    // ---------- apresentação ----------
+    this.shadow = scene.add.image(x, y, 'truck_shadow').setDepth(DEPTH.TRUCK_SHADOW);
+    this.sprite = scene.add.sprite(x, y, 'truck', 0).setDepth(DEPTH.TRUCK);
+    // origem no centro do CORPO (as 4 últimas linhas do frame são a chama do dash)
+    const fh = this.sprite.frame.height || 60;
+    this.sprite.setOrigin(0.5, fh >= 56 ? 26 / fh : 0.5);
+    this._playAnim('truck_drive');
+    this.shieldSprite = scene.add.image(x, y, 'shield_bubble').setDepth(DEPTH.TRUCK + 1).setVisible(false);
+
+    this.ghosts = [];
+    for (let i = 0; i < GHOSTS; i++) {
+      const g = scene.add.image(0, 0, 'truck', 0).setDepth(DEPTH.TRAIL).setVisible(false)
+        .setOrigin(this.sprite.originX, this.sprite.originY);
+      g.life = 0;
+      this.ghosts.push(g);
+    }
+    this._syncView();
+  }
+
+  // ---------------- estados ----------------
+  get isJumping() { return this.jumpState === 'air'; }
+  get isGrounded() { return this.jumpState !== 'air'; }
+  get isDashing() { return this.dashTimer > 0; }
+  get isInvulnerable() { return this.invulnTimer > 0; }
+  get hasShield() { return this.shieldTimer > 0; }
+  get isBoosting() { return this.boostTimer > 0; }
+  get hasMagnet() { return this.magnetTimer > 0; }
+  get dashReadyRatio() { return 1 - Math.max(0, this.dashCooldown) / DASH.COOLDOWN; }
+  get jumpReady() { return this.jumpState === 'ground' && this.jumpCooldown <= 0; }
+
+  // ---------------- ações ----------------
+  tryJump() {
+    if (!this.alive || !this.jumpReady) return false;
+    this.jumpState = 'prep';
+    this.jumpTimer = JUMP.PREP_DURATION;
+    return true;
+  }
+
+  tryDash(dirX = 0) {
+    if (!this.alive || this.dashCooldown > 0 || this.isDashing) return false;
+    this.dashTimer = DASH.DURATION;
+    this.dashCooldown = DASH.COOLDOWN;
+    this.dashDir = Math.sign(dirX);
+    this.trailTimer = 0;
+    this.scene.events.emit('truck:dash', this);
+    return true;
+  }
+
+  resetDash() { this.dashCooldown = 0; }
+
+  applyHit(stunTime = DAMAGE.STUN_TIME, invuln = DAMAGE.INVULNERABLE_TIME) {
+    this.invulnTimer = invuln;
+    this.stunTimer = stunTime;
+    this.hitFlashTimer = 0.25;
+    this.speed *= DAMAGE.STUN_SPEED_MULT;
+    this.vx *= 0.3;
+  }
+
+  // Usado quando o escudo absorve: sem perda de velocidade
+  absorbHit() {
+    this.shieldTimer = 0;
+    this.invulnTimer = 0.6;
+  }
+
+  wreck() {
+    this.alive = false;
+    this.dashTimer = 0;
+    this.vx = 0;
+    this.shieldTimer = 0;
+    this._playAnim('truck_wreck');
+  }
+
+  // Para sem destruir (tempo esgotado / alcançado pela tempestade)
+  halt() {
+    this.alive = false;
+    this.dashTimer = 0;
+    this.vx = 0;
+  }
+
+  setShield(d) { this.shieldTimer = d; }
+  setBoost(d) { this.boostTimer = d; }
+  setMagnet(d) { this.magnetTimer = d; }
+
+  // ---------------- simulação ----------------
+  /**
+   * @param dt segundos
+   * @param input InputManager (moveX/moveY)
+   * @param baseSpeed velocidade base vinda do DifficultyManager
+   * @param speedMult multiplicador extra do modo (ex.: lentidão na Fuga)
+   */
+  update(dt, input, baseSpeed, speedMult = 1) {
+    // timers
+    this.jumpCooldown = Math.max(0, this.jumpCooldown - dt);
+    this.dashCooldown = Math.max(0, this.dashCooldown - dt);
+    this.invulnTimer = Math.max(0, this.invulnTimer - dt);
+    this.stunTimer = Math.max(0, this.stunTimer - dt);
+    this.hitFlashTimer = Math.max(0, this.hitFlashTimer - dt);
+    this.boostTimer = Math.max(0, this.boostTimer - dt);
+    this.shieldTimer = Math.max(0, this.shieldTimer - dt);
+    this.magnetTimer = Math.max(0, this.magnetTimer - dt);
+    this.landTimer = Math.max(0, this.landTimer - dt);
+    this._edgeCooldown = Math.max(0, this._edgeCooldown - dt);
+
+    const mx = this.alive ? input.moveX : 0;
+    const my = this.alive ? input.moveY : 0;
+
+    // ----- velocidade de avanço (aceleração suave) -----
+    let throttle = 1;
+    if (my < 0) throttle = 1 + (TRUCK.THROTTLE_UP - 1) * -my;
+    else if (my > 0) throttle = 1 - (1 - TRUCK.THROTTLE_DOWN) * my;
+    let target = baseSpeed * throttle * speedMult;
+    if (this.isBoosting) target *= SPEED.BOOST_MULT;
+    if (this.stunTimer > 0) target *= DAMAGE.STUN_SPEED_MULT;
+    if (!this.alive) target = 0;
+
+    if (this.isDashing) {
+      // impulso imediato
+      this.speed = Math.max(this.speed, baseSpeed * speedMult * DASH.SPEED_MULT);
+    } else if (this.speed < target) {
+      this.speed = Math.min(target, this.speed + TRUCK.SPEED_ACCEL * dt);
+    } else {
+      this.speed = Math.max(target, this.speed - TRUCK.SPEED_DECEL * dt);
+    }
+
+    // ----- lateral (arcade com pequena inércia) -----
+    if (this.isDashing && this.dashDir !== 0) {
+      this.vx = this.dashDir * DASH.LATERAL_SPEED;
+    } else {
+      const targetVx = mx * TRUCK.LATERAL_MAX;
+      const accel = mx !== 0 ? TRUCK.LATERAL_ACCEL : TRUCK.LATERAL_DECEL;
+      this.vx = approach(this.vx, targetVx, accel * dt);
+    }
+    this.x += this.vx * dt;
+    if (this.x < this.minX || this.x > this.maxX) {
+      this.x = Phaser.Math.Clamp(this.x, this.minX, this.maxX);
+      if (Math.abs(this.vx) > 60 && this._edgeCooldown <= 0) {
+        this.scene.events.emit('truck:edge', this);
+        this._edgeCooldown = 0.12;
+      }
+      this.vx = 0;
+    }
+
+    // ----- vertical (posição na tela) -----
+    const targetVy = my * TRUCK.VERTICAL_MAX;
+    this.vy = approach(this.vy, targetVy, (my !== 0 ? TRUCK.VERTICAL_ACCEL : TRUCK.VERTICAL_DECEL) * dt);
+    this.y = Phaser.Math.Clamp(this.y + this.vy * dt, TRUCK.MIN_Y, TRUCK.MAX_Y);
+    if (this.y === TRUCK.MIN_Y || this.y === TRUCK.MAX_Y) this.vy = 0;
+
+    // ----- pulo -----
+    if (this.jumpState === 'prep') {
+      this.jumpTimer -= dt;
+      if (this.jumpTimer <= 0) {
+        this.jumpState = 'air';
+        this.jumpTimer = JUMP.AIR_DURATION;
+        this.scene.events.emit('truck:jump', this);
+      }
+    } else if (this.jumpState === 'air') {
+      this.jumpTimer -= dt;
+      const p = 1 - Math.max(0, this.jumpTimer) / JUMP.AIR_DURATION;
+      this.z = Math.sin(p * Math.PI) * JUMP.HEIGHT;
+      if (this.jumpTimer <= 0) {
+        this.z = 0;
+        this.jumpState = 'ground';
+        this.jumpCooldown = JUMP.COOLDOWN;
+        this.landTimer = JUMP.LAND_SQUASH;
+        this.scene.events.emit('truck:land', this);
+      }
+    }
+
+    // ----- dash -----
+    if (this.dashTimer > 0) {
+      this.dashTimer = Math.max(0, this.dashTimer - dt);
+      this.trailTimer -= dt;
+      if (this.trailTimer <= 0) {
+        this.trailTimer = DASH.TRAIL_INTERVAL;
+        if (this.trailEnabled) this._spawnGhost();
+      }
+      if (this.dashTimer === 0 && Math.abs(this.vx) > TRUCK.LATERAL_MAX) {
+        this.vx = Math.sign(this.vx) * TRUCK.LATERAL_MAX;
+      }
+    }
+
+    // hitbox justa centrada na posição no CHÃO
+    this.hitbox.setTo(this.x - TRUCK.HITBOX_W / 2, this.y - TRUCK.HITBOX_H / 2, TRUCK.HITBOX_W, TRUCK.HITBOX_H);
+  }
+
+  // ---------------- apresentação ----------------
+  _playAnim(key) {
+    if (this.scene.anims.exists(key)) this.sprite.play(key, true);
+  }
+
+  _spawnGhost() {
+    const g = this.ghosts.find((o) => !o.visible);
+    if (!g) return;
+    g.setTexture('truck', this.sprite.frame.name)
+      .setPosition(this.sprite.x, this.sprite.y)
+      .setScale(this.sprite.scaleX, this.sprite.scaleY)
+      .setAngle(this.sprite.angle)
+      .setTint(0x9be7ff)
+      .setAlpha(0.55)
+      .setVisible(true);
+    g.life = 0.22;
+  }
+
+  updateView(dt, worldDy) {
+    // fantasmas do dash descem com o mundo e somem
+    for (const g of this.ghosts) {
+      if (!g.visible) continue;
+      g.life -= dt;
+      g.y += worldDy * 0.6;
+      g.alpha = Math.max(0, g.life / 0.22) * 0.55;
+      if (g.life <= 0) g.setVisible(false);
+    }
+    this._syncView();
+  }
+
+  _syncView() {
+    const s = this.sprite;
+    const zN = this.z / JUMP.HEIGHT;
+    let sx = 1 + zN * JUMP.SCALE_BONUS;
+    let sy = sx;
+    if (this.jumpState === 'prep') { sx *= 1.08; sy *= 0.9; }
+    if (this.landTimer > 0) { sx *= 1.06; sy *= 0.93; }
+    s.setPosition(this.x, this.y - this.z);
+    s.setScale(sx, sy);
+    s.setAngle(this.alive ? (this.vx / TRUCK.LATERAL_MAX) * TRUCK.TILT_MAX_DEG * 0.6 : s.angle);
+    s.setDepth(this.isJumping ? DEPTH.TRUCK_AIR : DEPTH.TRUCK);
+
+    // animação
+    if (this.alive) {
+      if (this.hitFlashTimer > 0) this._playAnim('truck_hit');
+      else if (this.isDashing) this._playAnim('truck_dash');
+      else if (this.isJumping) this._playAnim('truck_jump');
+      else this._playAnim('truck_drive');
+      s.anims.timeScale = Phaser.Math.Clamp(this.speed / SPEED.BASE, 0.3, 3);
+      // piscar durante invulnerabilidade
+      s.setAlpha(this.invulnTimer > 0 && Math.floor(this.invulnTimer * 18) % 2 === 0 ? 0.35 : 1);
+    } else {
+      s.setAlpha(1);
+    }
+
+    // sombra fica no chão
+    this.shadow.setPosition(this.x + 3, this.y + 4);
+    this.shadow.setScale(1 - zN * 0.25);
+    this.shadow.setAlpha(1 - zN * 0.45);
+
+    // escudo (pisca nos últimos 2s)
+    const showShield = this.shieldTimer > 0 && (this.shieldTimer > 2 || Math.floor(this.shieldTimer * 8) % 2 === 0);
+    this.shieldSprite.setVisible(showShield).setPosition(s.x, s.y).setScale(sx);
+    this.shieldSprite.setDepth(s.depth + 1);
+  }
+
+  reset(x, y) {
+    this.x = x; this.y = y;
+    this.vx = 0; this.vy = 0; this.z = 0;
+    this.speed = SPEED.BASE;
+    this.jumpState = 'ground';
+    this.alive = true;
+  }
+
+  destroy() {
+    this.sprite.destroy();
+    this.shadow.destroy();
+    this.shieldSprite.destroy();
+    this.ghosts.forEach((g) => g.destroy());
+  }
+}
+
+function approach(v, target, step) {
+  if (v < target) return Math.min(target, v + step);
+  if (v > target) return Math.max(target, v - step);
+  return v;
+}
+
+return { Truck };
+})();
+
+// ---- src/systems/ScoreManager.js ----
+__m['src/systems/ScoreManager.js'] = (function () {
+// =============================================================
+// ScoreManager.js — pontuação, combo/multiplicador e recordes.
+// Sem dependência do Phaser (testável no Node).
+// =============================================================
+const { SCORE } = __m['src/config/balance.js'];
+const { StorageManager } = __m['src/systems/StorageManager.js'];
+
+class ScoreManager {
+  constructor(mode, { onMultiplierUp = null } = {}) {
+    this.mode = mode;
+    this.onMultiplierUp = onMultiplierUp;
+    this.reset();
+    const rec = StorageManager.getRecord(mode);
+    this.bestScore = rec.score;
+    this.bestDistance = rec.distance;
+  }
+
+  reset() {
+    this.score = 0;
+    this.meters = 0;
+    this.time = 0;
+    this.streak = 0;
+    this.bestStreak = 0;
+    this.multiplier = 1;
+    this.dodges = 0;
+    this.holesJumped = 0;
+    this.gears = 0;
+    this.collisions = 0;
+    this.timeBonus = 0;
+    this._meterAcc = 0;
+    this._timeAcc = 0;
+  }
+
+  // Pontos sempre passam pelo multiplicador
+  add(points) {
+    const v = Math.round(points * this.multiplier);
+    this.score += v;
+    return v;
+  }
+
+  // Chamado todo frame com metros percorridos no frame
+  tick(dt, metersDelta) {
+    this.time += dt;
+    this.meters += metersDelta;
+    this._meterAcc += metersDelta;
+    while (this._meterAcc >= SCORE.METERS_PER_POINT) {
+      this._meterAcc -= SCORE.METERS_PER_POINT;
+      this.add(1);
+    }
+    this._timeAcc += dt;
+    while (this._timeAcc >= 1) {
+      this._timeAcc -= 1;
+      this.add(SCORE.POINTS_PER_SECOND);
+    }
+  }
+
+  _incStreak() {
+    this.streak++;
+    this.bestStreak = Math.max(this.bestStreak, this.streak);
+    const newMult = Math.min(SCORE.COMBO_MAX_MULT, 1 + Math.floor(this.streak / SCORE.COMBO_STEP));
+    if (newMult > this.multiplier) {
+      this.multiplier = newMult;
+      if (this.onMultiplierUp) this.onMultiplierUp(newMult);
+    }
+  }
+
+  onDodge() {
+    this.dodges++;
+    this._incStreak();
+    return this.add(SCORE.DODGE);
+  }
+
+  onHoleJumped() {
+    this.holesJumped++;
+    this._incStreak();
+    return this.add(SCORE.JUMP_HOLE);
+  }
+
+  onGear() {
+    this.gears++;
+    return this.add(SCORE.GEAR);
+  }
+
+  onPowerUp() { return this.add(SCORE.POWERUP); }
+
+  onCollision() {
+    this.collisions++;
+    this.streak = 0;
+    this.multiplier = 1;
+  }
+
+  addTimeBonus(seconds) {
+    const v = Math.round(seconds * SCORE.TIME_BONUS_PER_SECOND);
+    this.timeBonus += v;
+    this.score += v;
+    return v;
+  }
+
+  get distance() { return Math.floor(this.meters); }
+
+  get displayScore() { return Math.floor(this.score); }
+
+  // Salva recordes e retorna o resumo da partida
+  finalize(reason = '') {
+    const score = Math.floor(this.score);
+    const distance = Math.floor(this.meters);
+    const res = StorageManager.submitRecord(this.mode, score, distance);
+    StorageManager.addGears(this.gears);
+    return {
+      mode: this.mode,
+      reason,
+      score,
+      distance,
+      time: this.time,
+      gears: this.gears,
+      dodges: this.dodges,
+      holesJumped: this.holesJumped,
+      bestStreak: this.bestStreak,
+      timeBonus: this.timeBonus,
+      newScoreRecord: res.newScore && score > 0,
+      newDistanceRecord: res.newDistance && distance > 0,
+      bestScore: res.best.score,
+      bestDistance: res.best.distance
+    };
+  }
+}
+
+return { ScoreManager };
+})();
+
+// ---- src/systems/DifficultyManager.js ----
+__m['src/systems/DifficultyManager.js'] = (function () {
+// =============================================================
+// DifficultyManager.js — curva de dificuldade configurável.
+// difficulty = (tempo*W_T + metros/M*W_D) * RATE
+// Interpola valores numéricos entre keyframes de balance.js.
+// Sem dependência do Phaser.
+// =============================================================
+const { DIFFICULTY, OBSTACLE_WEIGHTS, SPEED } = __m['src/config/balance.js'];
+
+const NUMERIC = ['speed', 'rowTimeMin', 'rowTimeMax', 'maxBlocked', 'fill', 'jumpRowChance', 'animalChance'];
+
+class DifficultyManager {
+  constructor(config = DIFFICULTY) {
+    this.cfg = config;
+    this.curve = [...config.CURVE].sort((a, b) => a.at - b.at);
+    this.level = 0;
+    this.stage = 0;
+    this.params = {};
+    this._poolCache = new Map();
+    this.update(0, 0);
+  }
+
+  compute(time, meters) {
+    const c = this.cfg;
+    return (time * c.TIME_WEIGHT + (meters / c.METERS_PER_UNIT) * c.DISTANCE_WEIGHT) * c.RATE;
+  }
+
+  update(time, meters) {
+    this.level = this.compute(time, meters);
+    const curve = this.curve;
+    let i = 0;
+    while (i < curve.length - 1 && this.level >= curve[i + 1].at) i++;
+    this.stage = i;
+    const a = curve[i];
+    const b = curve[Math.min(i + 1, curve.length - 1)];
+    const span = b.at - a.at;
+    const t = span > 0 ? Math.min(1, (this.level - a.at) / span) : 0;
+    NUMERIC.forEach((k) => { this.params[k] = a[k] + (b[k] - a[k]) * t; });
+    this.params.speed = Math.min(SPEED.MAX, this.params.speed);
+    this.params.maxBlocked = Math.floor(this.params.maxBlocked + 1e-6);
+    this.params.pool = this._pool(i);
+    return this.params;
+  }
+
+  // Pool acumulativo de tipos liberados até o estágio i, com pesos
+  _pool(i) {
+    if (this._poolCache.has(i)) return this._poolCache.get(i);
+    const ids = [];
+    for (let s = 0; s <= i; s++) this.curve[s].pool.forEach((id) => { if (!ids.includes(id)) ids.push(id); });
+    const pool = ids.map((id) => ({ id, weight: OBSTACLE_WEIGHTS[id] ?? 1 })).filter((p) => p.weight > 0);
+    this._poolCache.set(i, pool);
+    return pool;
+  }
+
+  get baseSpeed() { return this.params.speed; }
+
+  // 0..1 para HUD / efeitos
+  get speedRatio() { return this.params.speed / SPEED.MAX; }
+}
+
+return { DifficultyManager };
+})();
+
+// ---- src/entities/Obstacle.js ----
+__m['src/entities/Obstacle.js'] = (function () {
+// =============================================================
+// Obstacle.js — obstáculo reciclável (object pooling).
+// A definição (tipo, hitbox, severidade, pulável) vem de
+// balance.js → OBSTACLE_TYPES. A textura pode ser procedural
+// ou PNG externo, sem mudar a lógica.
+// =============================================================
+const { DEPTH, ROAD, GAME_WIDTH } = __m['src/config/gameConfig.js'];
+const { firstFrame, frameSize } = __m['src/art/textureUtils.js'];
+
+class Obstacle {
+  constructor(scene) {
+    this.scene = scene;
+    this.sprite = scene.add.sprite(-100, -100, 'cone').setVisible(false).setActive(false);
+    this.hitbox = new Phaser.Geom.Rectangle();
+    this.active = false;
+    this.id = null;
+    this.def = null;
+  }
+
+  spawn(id, def, x, y, { highContrast = false, dir = 1 } = {}) {
+    const tex = this.scene.textures;
+    const baseKey = def.texture;
+    const hcKey = baseKey + '_hc';
+    const useHc = highContrast && tex.exists(hcKey);
+    const key = useHc ? hcKey : baseKey;
+
+    this.id = id;
+    this.def = def;
+    this.category = def.category;
+    this.x = x;
+    this.y = y;
+    this.vx = 0;
+    this.active = true;
+    this.passed = false;       // já passou pelo caminhão
+    this.collided = false;
+    this.jumpedOver = false;   // estava sob o caminhão no ar
+
+    // tamanho lógico = frame da textura BASE (hitbox não muda no alto contraste)
+    const size = frameSize(this.scene, baseKey);
+    this.w = size.w;
+    this.h = size.h;
+    this.hitW = this.w * def.hit[0];
+    this.hitH = this.h * def.hit[1];
+
+    const s = this.sprite;
+    s.setTexture(key, firstFrame(this.scene, key)).setPosition(x, y).setVisible(true).setActive(true)
+      .setAlpha(1).setAngle(0).setScale(1).setFlipX(false).clearTint();
+    s.setDepth(def.category === 'HOLE' ? DEPTH.HOLE : DEPTH.OBSTACLE);
+
+    if (def.anim) {
+      const animKey = useHc ? def.anim + '_hc' : def.anim;
+      if (this.scene.anims.exists(animKey)) s.play(animKey);
+      this.vx = (def.walkSpeed || 50) * dir;
+      s.setFlipX(dir < 0);
+    } else {
+      s.stop();
+    }
+    this._updateHitbox();
+    return this;
+  }
+
+  update(dt, worldDy) {
+    this.y += worldDy;
+    if (this.vx) {
+      this.x += this.vx * dt;
+      if (this.x < -40 || this.x > GAME_WIDTH + 40) this.vx = 0;
+    }
+    this.sprite.setPosition(this.x, this.y);
+    this._updateHitbox();
+  }
+
+  _updateHitbox() {
+    this.hitbox.setTo(this.x - this.hitW / 2, this.y - this.hitH / 2, this.hitW, this.hitH);
+  }
+
+  // Está sobre o asfalto (animais fora da pista não colidem)
+  get onRoad() { return this.x > ROAD.X - 10 && this.x < ROAD.RIGHT + 10; }
+
+  release() {
+    this.active = false;
+    this.sprite.stop();
+    this.sprite.setVisible(false).setActive(false);
+  }
+}
+
+return { Obstacle };
+})();
+
+// ---- src/systems/PatternGenerator.js ----
+__m['src/systems/PatternGenerator.js'] = (function () {
+// =============================================================
+// PatternGenerator.js — gera fileiras de obstáculos GARANTINDO
+// que sempre exista ao menos uma rota segura.
+//
+// Ideia: mantemos o conjunto R de faixas "alcançáveis e seguras".
+// Para a próxima fileira, dilatamos R pelo alcance lateral k
+// (quantas faixas o caminhão consegue cruzar no tempo entre as
+// fileiras). Pelo menos uma faixa desse conjunto dilatado N fica
+// livre na nova fileira; R' = faixas livres ∩ N (nunca vazio).
+//
+// Fileiras especiais:
+//  - 'jump'  : buracos em TODAS as faixas (só passa pulando);
+//              só é gerada com tempo de leitura e sem pulo recente.
+//  - 'animal': um animal atravessando; o resto da pista livre.
+//
+// Sem dependência do Phaser (testado em tests/).
+// =============================================================
+const { OBSTACLE_TYPES } = __m['src/config/balance.js'];
+
+class PatternGenerator {
+  constructor(laneCount, rng = Math.random) {
+    this.laneCount = laneCount;
+    this.rng = rng;
+    this.reset();
+  }
+
+  reset() {
+    this.reachable = this._all();
+  }
+
+  _all() { return Array.from({ length: this.laneCount }, (_, i) => i); }
+
+  _randInt(a, b) { return a + Math.floor(this.rng() * (b - a + 1)); }
+
+  _pick(arr) { return arr[Math.floor(this.rng() * arr.length)]; }
+
+  _weighted(pool) {
+    const total = pool.reduce((s, p) => s + p.weight, 0);
+    let r = this.rng() * total;
+    for (const p of pool) { if ((r -= p.weight) <= 0) return p; }
+    return pool[pool.length - 1];
+  }
+
+  // Dilata conjunto de faixas por k
+  dilate(set, k) {
+    const out = new Set();
+    set.forEach((l) => {
+      for (let d = -k; d <= k; d++) {
+        const n = l + d;
+        if (n >= 0 && n < this.laneCount) out.add(n);
+      }
+    });
+    return [...out].sort((a, b) => a - b);
+  }
+
+  // Decide o TIPO da próxima fileira (para o chamador ajustar o gap antes)
+  planType(params, { jumpAllowed = false } = {}) {
+    if (jumpAllowed && params.jumpRowChance > 0 && this.rng() < params.jumpRowChance) return 'jump';
+    if (params.animalChance > 0 && this.rng() < params.animalChance) return 'animal';
+    return 'normal';
+  }
+
+  /**
+   * Gera a fileira.
+   * @param type  'normal' | 'jump' | 'animal'
+   * @param params { maxBlocked, fill, pool:[{id,weight}] }
+   * @param reach  faixas alcançáveis desde a fileira anterior (>=0)
+   * @returns { type, obstacles:[{id, lane, lanes}], safeLanes:[...], freeLanes:[...] }
+   */
+  generate(type, params, reach) {
+    const N = this.dilate(this.reachable, Math.max(0, reach));
+
+    if (type === 'jump') {
+      const obstacles = this._all().map((lane) => ({ id: 'hole_l', lane, lanes: 1 }));
+      // todas atravessáveis pulando; R' = N
+      this.reachable = N;
+      return { type, obstacles, safeLanes: N.slice(), freeLanes: [] };
+    }
+
+    if (type === 'animal') {
+      const lane = this._randInt(0, this.laneCount - 1);
+      this.reachable = N;
+      return { type, obstacles: [{ id: 'animal', lane, lanes: 1 }], safeLanes: N.slice(), freeLanes: N.slice() };
+    }
+
+    // ---------- fileira normal ----------
+    // GARANTIA FORTE: de QUALQUER faixa segura atual existe uma faixa
+    // livre alcançável na nova fileira (nunca há "beco sem saída").
+    const k = Math.max(0, reach);
+    const guaranteed = new Set();
+    const prev = this.reachable.slice();
+    for (let i = prev.length - 1; i > 0; i--) {
+      const j = Math.floor(this.rng() * (i + 1));
+      [prev[i], prev[j]] = [prev[j], prev[i]];
+    }
+    for (const r of prev) {
+      let covered = false;
+      guaranteed.forEach((g) => { if (Math.abs(g - r) <= k) covered = true; });
+      if (covered) continue;
+      const lo = Math.max(0, r - k), hi = Math.min(this.laneCount - 1, r + k);
+      guaranteed.add(this._randInt(lo, hi));
+    }
+
+    const maxBlocked = Math.max(0, Math.min(params.maxBlocked, this.laneCount - guaranteed.size));
+    let nBlocked = maxBlocked > 0 ? this._randInt(1, maxBlocked) : 0;
+    if (nBlocked > 1 && this.rng() > params.fill) nBlocked--;
+
+    const candidates = this._all().filter((l) => !guaranteed.has(l));
+    // embaralha
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(this.rng() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+    const blocked = new Set(candidates.slice(0, nBlocked));
+
+    const obstacles = [];
+    const occupied = new Set();
+    const pool = params.pool && params.pool.length ? params.pool : [{ id: 'cone', weight: 1 }];
+    const sortedBlocked = [...blocked].sort((a, b) => a - b);
+
+    for (const lane of sortedBlocked) {
+      if (occupied.has(lane)) continue;
+      // tenta algumas vezes encaixar um tipo (multi-faixa precisa de sequência bloqueada)
+      let placed = false;
+      for (let attempt = 0; attempt < 4 && !placed; attempt++) {
+        const choice = this._weighted(pool);
+        const def = OBSTACLE_TYPES[choice.id];
+        if (!def) continue;
+        const span = def.lanes;
+        let ok = lane + span <= this.laneCount;
+        for (let s = 0; ok && s < span; s++) {
+          if (!blocked.has(lane + s) || occupied.has(lane + s)) ok = false;
+        }
+        if (!ok) continue;
+        for (let s = 0; s < span; s++) occupied.add(lane + s);
+        obstacles.push({ id: choice.id, lane, lanes: span });
+        placed = true;
+      }
+      if (!placed) {
+        // fallback: obstáculo de uma faixa
+        const single = pool.filter((p) => OBSTACLE_TYPES[p.id] && OBSTACLE_TYPES[p.id].lanes === 1);
+        const pick = single.length ? this._weighted(single).id : 'cone';
+        occupied.add(lane);
+        obstacles.push({ id: pick, lane, lanes: 1 });
+      }
+    }
+
+    const free = this._all().filter((l) => !occupied.has(l));
+    const safe = free.filter((l) => N.includes(l));
+    this.reachable = safe.length ? safe : [...guaranteed]; // safe sempre contém as faixas garantidas
+    return { type, obstacles, safeLanes: this.reachable.slice(), freeLanes: free };
+  }
+}
+
+return { PatternGenerator };
+})();
+
+// ---- src/systems/ObstacleManager.js ----
+__m['src/systems/ObstacleManager.js'] = (function () {
+// =============================================================
+// ObstacleManager.js — criação e RECICLAGEM de obstáculos.
+// Decide quando gerar uma fileira (gap em px), calcula o alcance
+// lateral do caminhão e delega o padrão ao PatternGenerator
+// (que garante rota segura). Usa object pooling.
+// =============================================================
+const { Obstacle } = __m['src/entities/Obstacle.js'];
+const { PatternGenerator } = __m['src/systems/PatternGenerator.js'];
+const { OBSTACLE_TYPES, SPAWN, TRUCK } = __m['src/config/balance.js'];
+const { ROAD, SPAWN_Y, DESPAWN_Y, laneCenter } = __m['src/config/gameConfig.js'];
+
+class ObstacleManager {
+  constructor(scene, { highContrast = false, onRowSpawned = null } = {}) {
+    this.scene = scene;
+    this.highContrast = highContrast;
+    this.onRowSpawned = onRowSpawned;
+    this.pool = [];
+    for (let i = 0; i < SPAWN.MAX_OBSTACLES; i++) this.pool.push(new Obstacle(scene));
+    this.active = [];
+    this.generator = new PatternGenerator(ROAD.LANES);
+    this.reset();
+  }
+
+  reset() {
+    this.active.forEach((o) => o.release());
+    this.active.length = 0;
+    this.generator.reset();
+    this.distSinceRow = 0;
+    this.nextGap = SPAWN.FIRST_ROW_DELAY_PX;
+    this.plannedType = 'normal';
+    this.timeSinceJumpRow = 99;
+    this.elapsed = 0;
+    this.enabled = true;
+  }
+
+  _acquire() {
+    const o = this.pool.find((p) => !p.active);
+    return o || null; // pool cheio: ignora (nunca deve ocorrer com o tamanho padrão)
+  }
+
+  /**
+   * @param dt     segundos
+   * @param worldDy deslocamento do mundo no frame (px)
+   * @param params parâmetros do DifficultyManager
+   */
+  update(dt, worldDy, params) {
+    this.elapsed += dt;
+    this.timeSinceJumpRow += dt;
+
+    // movimenta e recicla
+    for (let i = this.active.length - 1; i >= 0; i--) {
+      const o = this.active[i];
+      o.update(dt, worldDy);
+      if (o.y > DESPAWN_Y) {
+        o.release();
+        this.active.splice(i, 1);
+      }
+    }
+
+    if (!this.enabled) return;
+    this.distSinceRow += worldDy;
+    if (this.distSinceRow >= this.nextGap) {
+      this._spawnRow(params);
+    }
+  }
+
+  _spawnRow(params) {
+    const gapUsed = this.distSinceRow;
+    this.distSinceRow = 0;
+
+    // alcance lateral (em faixas) desde a fileira anterior.
+    // Pior caso: jogador segurando W (acelerando) → menos tempo para desviar.
+    const fastest = params.speed * TRUCK.THROTTLE_UP;
+    const freeTime = Math.max(0, gapUsed - SPAWN.ROW_CLEARANCE_PX) / fastest;
+    const reach = Math.floor((TRUCK.LATERAL_MAX * SPAWN.REACH_SAFETY * freeTime) / ROAD.LANE_WIDTH);
+
+    const type = this.plannedType;
+    const row = this.generator.generate(type, params, reach);
+    if (type === 'jump') this.timeSinceJumpRow = 0;
+
+    for (const ob of row.obstacles) {
+      const def = OBSTACLE_TYPES[ob.id];
+      if (!def) continue;
+      const o = this._acquire();
+      if (!o) break;
+      // centro do conjunto de faixas ocupado
+      let x = laneCenter(ob.lane) + (ob.lanes - 1) * ROAD.LANE_WIDTH / 2;
+      let dir = 1;
+      if (ob.id === 'animal') {
+        // atravessa a pista a partir de uma das bordas
+        dir = Math.random() < 0.5 ? 1 : -1;
+        x = dir > 0 ? ROAD.X + 8 : ROAD.RIGHT - 8;
+      } else if (ob.lanes === 1 && type === 'normal') {
+        x += (Math.random() * 2 - 1) * SPAWN.LANE_JITTER;
+      }
+      o.spawn(ob.id, def, x, SPAWN_Y, { highContrast: this.highContrast, dir });
+      this.active.push(o);
+    }
+
+    // planeja a próxima fileira e o gap
+    const jumpAllowed = this.timeSinceJumpRow >= SPAWN.JUMP_ROW_MIN_INTERVAL && type !== 'jump';
+    this.plannedType = this.generator.planType(params, { jumpAllowed });
+    const rowTime = params.rowTimeMin + Math.random() * (params.rowTimeMax - params.rowTimeMin);
+    let gap = rowTime * params.speed;               // segundos → pixels
+    const speed = params.speed * TRUCK.THROTTLE_UP;
+    if (this.plannedType === 'jump') gap = Math.max(gap, speed * SPAWN.JUMP_ROW_LEAD_TIME);
+    if (type === 'jump') gap = Math.max(gap, speed * SPAWN.JUMP_ROW_EXIT_TIME);
+    if (type === 'animal') gap = Math.max(gap, speed * SPAWN.ANIMAL_EXIT_TIME);
+    this.nextGap = gap;
+
+    if (this.onRowSpawned) this.onRowSpawned(row, SPAWN_Y, gap);
+  }
+
+  // Remove um obstáculo específico (após colisão)
+  destroyObstacle(o) {
+    const i = this.active.indexOf(o);
+    if (i >= 0) this.active.splice(i, 1);
+    o.release();
+  }
+
+  setHighContrast(v) { this.highContrast = v; }
+}
+
+return { ObstacleManager };
+})();
+
+// ---- src/entities/Pickup.js ----
+__m['src/entities/Pickup.js'] = (function () {
+// =============================================================
+// Pickup.js — base reciclável para itens SEM colisão física
+// (coletáveis e power-ups). Flutua, pulsa e pode ser atraído
+// pelo ímã.
+// =============================================================
+const { DEPTH } = __m['src/config/gameConfig.js'];
+const { firstFrame } = __m['src/art/textureUtils.js'];
+
+class Pickup {
+  constructor(scene) {
+    this.scene = scene;
+    this.sprite = scene.add.sprite(-100, -100, 'gear').setVisible(false).setActive(false).setDepth(DEPTH.PICKUP);
+    this.hitbox = new Phaser.Geom.Rectangle();
+    this.active = false;
+    this.kind = null;
+    this.radius = 10;
+  }
+
+  spawn(kind, texture, x, y, { anim = null, radius = 10, magnetic = true, bob = 2 } = {}) {
+    this.kind = kind;
+    this.x = x;
+    this.y = y;
+    this.t = Math.random() * Math.PI * 2;
+    this.radius = radius;
+    this.magnetic = magnetic;
+    this.bob = bob;
+    this.active = true;
+    const s = this.sprite;
+    s.setTexture(texture, firstFrame(this.scene, texture)).setPosition(x, y).setVisible(true).setActive(true).setAlpha(1).setScale(1);
+    if (anim && this.scene.anims.exists(anim)) s.play(anim); else s.stop();
+    this._hb();
+    return this;
+  }
+
+  update(dt, worldDy, magnet = null) {
+    this.t += dt;
+    this.y += worldDy;
+    if (magnet && this.magnetic) {
+      const dx = magnet.x - this.x;
+      const dy = magnet.y - this.y;
+      const d = Math.hypot(dx, dy);
+      if (d < magnet.radius && d > 1) {
+        const pull = magnet.pull * dt;
+        this.x += (dx / d) * Math.min(pull, d);
+        this.y += (dy / d) * Math.min(pull, d);
+      }
+    }
+    this.sprite.setPosition(this.x, this.y + Math.sin(this.t * 5) * this.bob);
+    this._hb();
+  }
+
+  _hb() {
+    const r = this.radius;
+    this.hitbox.setTo(this.x - r, this.y - r, r * 2, r * 2);
+  }
+
+  release() {
+    this.active = false;
+    this.sprite.stop();
+    this.sprite.setVisible(false).setActive(false);
+  }
+}
+
+return { Pickup };
+})();
+
+// ---- src/entities/Collectible.js ----
+__m['src/entities/Collectible.js'] = (function () {
+// =============================================================
+// Collectible.js — engrenagens (pontos + moeda futura) e
+// relógios de tempo (+3s / +5s no modo Contra o Tempo).
+// =============================================================
+const { Pickup } = __m['src/entities/Pickup.js'];
+const { COLLECTIBLES } = __m['src/config/balance.js'];
+
+const COLLECTIBLE_KINDS = {
+  gear: { texture: 'gear', anim: 'gear_spin', radius: 9, timeBonus: 0 },
+  clock_s: { texture: 'clock_s', anim: null, radius: 12, timeBonus: COLLECTIBLES.TIME_PICKUP_SMALL },
+  clock_l: { texture: 'clock_l', anim: null, radius: 12, timeBonus: COLLECTIBLES.TIME_PICKUP_BIG }
+};
+
+class Collectible extends Pickup {
+  spawnKind(kind, x, y) {
+    const def = COLLECTIBLE_KINDS[kind];
+    this.def = def;
+    this.spawn(kind, def.texture, x, y, { anim: def.anim, radius: def.radius, magnetic: true, bob: kind === 'gear' ? 1.5 : 2.5 });
+    // relógios pulsam para chamar atenção
+    this.pulse = kind !== 'gear';
+    return this;
+  }
+
+  update(dt, worldDy, magnet) {
+    super.update(dt, worldDy, magnet);
+    if (this.pulse) this.sprite.setScale(1 + Math.sin(this.t * 8) * 0.08);
+  }
+}
+
+return { COLLECTIBLE_KINDS, Collectible };
+})();
+
+// ---- src/entities/PowerUp.js ----
+__m['src/entities/PowerUp.js'] = (function () {
+// =============================================================
+// PowerUp.js — escudo, boost, reparo, dash instantâneo, ímã.
+// Definições/durações em balance.js → POWERUPS.TYPES
+// =============================================================
+const { Pickup } = __m['src/entities/Pickup.js'];
+const { POWERUPS } = __m['src/config/balance.js'];
+
+class PowerUp extends Pickup {
+  spawnType(type, x, y) {
+    const def = POWERUPS.TYPES[type];
+    this.def = def;
+    this.type = type;
+    this.spawn(type, def.texture, x, y, { radius: 13, magnetic: false, bob: 3 });
+    return this;
+  }
+
+  update(dt, worldDy) {
+    super.update(dt, worldDy, null);
+    // brilho pulsante + leve rotação
+    this.sprite.setScale(1 + Math.sin(this.t * 6) * 0.1);
+    this.sprite.setAngle(Math.sin(this.t * 3) * 8);
+  }
+}
+
+return { PowerUp };
+})();
+
+// ---- src/systems/PickupManager.js ----
+__m['src/systems/PickupManager.js'] = (function () {
+// =============================================================
+// PickupManager.js — coletáveis (engrenagens, relógios) e
+// power-ups. Só posiciona itens em faixas SEGURAS informadas
+// pelo ObstacleManager. Pooling + frequência controlada.
+// =============================================================
+const { Collectible } = __m['src/entities/Collectible.js'];
+const { PowerUp } = __m['src/entities/PowerUp.js'];
+const { COLLECTIBLES, POWERUPS } = __m['src/config/balance.js'];
+const { DESPAWN_Y, laneCenter } = __m['src/config/gameConfig.js'];
+
+const POWERUP_POOL = 4;
+
+class PickupManager {
+  constructor(scene, { allowRepair = true, timePickups = false } = {}) {
+    this.scene = scene;
+    this.allowRepair = allowRepair;
+    this.timePickups = timePickups;
+    this.collectibles = [];
+    this.powerups = [];
+    for (let i = 0; i < COLLECTIBLES.MAX_ACTIVE; i++) this.collectibles.push(new Collectible(scene));
+    for (let i = 0; i < POWERUP_POOL; i++) this.powerups.push(new PowerUp(scene));
+    this.timeSincePowerUp = 0;
+    this.timeSinceClock = 0;
+    this.livesProvider = () => 0;
+    this.maxLives = 0;
+  }
+
+  update(dt, worldDy, magnet) {
+    this.timeSincePowerUp += dt;
+    this.timeSinceClock += dt;
+    for (const c of this.collectibles) {
+      if (!c.active) continue;
+      c.update(dt, worldDy, magnet);
+      if (c.y > DESPAWN_Y) c.release();
+    }
+    for (const p of this.powerups) {
+      if (!p.active) continue;
+      p.update(dt, worldDy);
+      if (p.y > DESPAWN_Y) p.release();
+    }
+  }
+
+  // Chamado a cada fileira gerada
+  onRow(row, rowY, gapAfter) {
+    const lanes = row.safeLanes.length ? row.safeLanes : [];
+    if (!lanes.length) return;
+    const pick = () => lanes[Math.floor(Math.random() * lanes.length)];
+
+    // ---- relógios (Contra o Tempo) ----
+    if (this.timePickups && this.timeSinceClock >= COLLECTIBLES.TIME_PICKUP_INTERVAL && row.type === 'normal') {
+      const kind = Math.random() < COLLECTIBLES.TIME_PICKUP_BIG_CHANCE ? 'clock_l' : 'clock_s';
+      this._spawnCollectible(kind, laneCenter(pick()), rowY);
+      this.timeSinceClock = 0;
+    } else if (row.type === 'normal' && this.timeSincePowerUp >= POWERUPS.MIN_INTERVAL
+      && Math.random() < POWERUPS.CHANCE_PER_ROW) {
+      // ---- power-up na própria fileira, em faixa livre ----
+      const type = this._rollPowerUp();
+      if (type) {
+        const p = this.powerups.find((o) => !o.active);
+        if (p) {
+          p.spawnType(type, laneCenter(pick()), rowY);
+          this.timeSincePowerUp = 0;
+        }
+      }
+    }
+
+    // ---- linha de engrenagens ENTRE esta fileira e a próxima ----
+    if (Math.random() < COLLECTIBLES.GEAR_LINE_CHANCE && row.type !== 'jump') {
+      const lane = pick();
+      const n = COLLECTIBLES.GEAR_LINE_MIN
+        + Math.floor(Math.random() * (COLLECTIBLES.GEAR_LINE_MAX - COLLECTIBLES.GEAR_LINE_MIN + 1));
+      const span = (n - 1) * COLLECTIBLES.GEAR_SPACING;
+      // centraliza no meio do gap, sem invadir a próxima fileira
+      const usable = Math.max(0, gapAfter - 90);
+      if (span <= usable) {
+        const startY = rowY - 45 - (usable - span) / 2;
+        for (let i = 0; i < n; i++) {
+          this._spawnCollectible('gear', laneCenter(lane), startY - i * COLLECTIBLES.GEAR_SPACING);
+        }
+      }
+    }
+  }
+
+  _spawnCollectible(kind, x, y) {
+    const c = this.collectibles.find((o) => !o.active);
+    if (c) c.spawnKind(kind, x, y);
+  }
+
+  _rollPowerUp() {
+    const lives = this.livesProvider();
+    const entries = Object.entries(POWERUPS.TYPES).filter(([, d]) => {
+      if (d.livesOnly) return this.allowRepair && lives < this.maxLives;
+      return true;
+    });
+    if (!entries.length) return null;
+    const total = entries.reduce((s, [, d]) => s + d.weight, 0);
+    let r = Math.random() * total;
+    for (const [k, d] of entries) { if ((r -= d.weight) <= 0) return k; }
+    return entries[entries.length - 1][0];
+  }
+
+  reset() {
+    this.collectibles.forEach((c) => c.active && c.release());
+    this.powerups.forEach((p) => p.active && p.release());
+    this.timeSincePowerUp = 0;
+    this.timeSinceClock = 0;
+  }
+}
+
+return { PickupManager };
+})();
+
+// ---- src/systems/CollisionSystem.js ----
+__m['src/systems/CollisionSystem.js'] = (function () {
+// =============================================================
+// CollisionSystem.js — colisões separadas por CATEGORIA.
+//  TRUCK x OBSTACLE  : dano (exceto se pulável e caminhão no ar)
+//  TRUCK x HOLE      : dano SOMENTE se truck.isJumping === false
+//  TRUCK x POWERUP   : coleta (sem colisão física)
+//  TRUCK x COLLECTIBLE: coleta (sem colisão física)
+//  TRUCK x ENVIRONMENT: árvores/bordas = limite (clamp no Truck)
+// Também detecta "desvios" (obstáculo passou sem bater).
+// =============================================================
+
+const CATEGORY = {
+  TRUCK: 'TRUCK',
+  OBSTACLE: 'OBSTACLE',
+  HOLE: 'HOLE',
+  POWERUP: 'POWERUP',
+  COLLECTIBLE: 'COLLECTIBLE',
+  ENVIRONMENT: 'ENVIRONMENT'
+};
+
+const overlaps = (a, b) => Phaser.Geom.Intersects.RectangleToRectangle(a, b);
+
+class CollisionSystem {
+  /**
+   * handlers: { onHit(obstacle), onDodge(obstacle), onJumpOver(obstacle),
+   *             onCollect(collectible), onPowerUp(powerup) }
+   */
+  constructor(handlers) {
+    this.h = handlers;
+  }
+
+  // Regra central: este obstáculo machuca o caminhão agora?
+  static canHurt(truck, o) {
+    if (o.category === CATEGORY.HOLE) return truck.isJumping === false;
+    if (o.def.jumpable && truck.isJumping) return false;
+    return true;
+  }
+
+  update(truck, obstacleManager, pickupManager) {
+    if (!truck.alive) return;
+    const tb = truck.hitbox;
+
+    // ----- obstáculos e buracos -----
+    const list = obstacleManager.active;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const o = list[i];
+      if (!o.active || o.collided) continue;
+
+      if (o.onRoad && overlaps(tb, o.hitbox)) {
+        if (CollisionSystem.canHurt(truck, o)) {
+          // durante a invulnerabilidade o obstáculo é ignorado (sem dano e sem bônus)
+          o.collided = true;
+          if (!truck.isInvulnerable) this.h.onHit(o);
+          continue;
+        } else if (truck.isJumping) {
+          o.jumpedOver = true;
+        }
+      }
+
+      // passou pelo caminhão sem colidir → desvio
+      if (!o.passed && o.hitbox.y > tb.bottom) {
+        o.passed = true;
+        if (o.jumpedOver && o.category === CATEGORY.HOLE) this.h.onJumpOver(o);
+        else this.h.onDodge(o);
+      }
+    }
+
+    // ----- coletáveis -----
+    for (const c of pickupManager.collectibles) {
+      if (c.active && overlaps(tb, c.hitbox)) {
+        this.h.onCollect(c);
+        c.release();
+      }
+    }
+    // ----- power-ups -----
+    for (const p of pickupManager.powerups) {
+      if (p.active && overlaps(tb, p.hitbox)) {
+        this.h.onPowerUp(p);
+        p.release();
+      }
+    }
+  }
+}
+
+return { CATEGORY, CollisionSystem };
+})();
+
+// ---- src/systems/EffectsManager.js ----
+__m['src/systems/EffectsManager.js'] = (function () {
+// =============================================================
+// EffectsManager.js — feedback visual centralizado:
+// partículas (limitadas), screen shake, flash, textos flutuantes,
+// brilho de combo. Respeita as opções de acessibilidade.
+// =============================================================
+const { DEPTH, FONT } = __m['src/config/gameConfig.js'];
+const { FX } = __m['src/config/balance.js'];
+const { StorageManager } = __m['src/systems/StorageManager.js'];
+
+const FLOAT_POOL = 12;
+
+class EffectsManager {
+  constructor(scene) {
+    this.scene = scene;
+    this.settings = StorageManager.getSettings();
+    const s = scene;
+    const limit = Math.floor(FX.MAX_PARTICLES / 4);
+
+    // Emissores reutilizáveis (Phaser 3.60+ API)
+    this.dust = s.add.particles(0, 0, 'smoke', {
+      speed: { min: 20, max: 60 }, angle: { min: 200, max: 340 }, lifespan: 380,
+      scale: { start: 1, end: 0.2 }, alpha: { start: 0.5, end: 0 }, tint: 0xb8a98c,
+      emitting: false, maxAliveParticles: limit
+    }).setDepth(DEPTH.PARTICLES);
+
+    this.sparks = s.add.particles(0, 0, 'spark', {
+      speed: { min: 60, max: 200 }, lifespan: 420, scale: { start: 1, end: 0 },
+      tint: [0xffd93d, 0xff9a3c, 0xffffff], gravityY: 300,
+      emitting: false, maxAliveParticles: limit
+    }).setDepth(DEPTH.PARTICLES);
+
+    this.debris = s.add.particles(0, 0, 'px', {
+      speed: { min: 80, max: 220 }, lifespan: 600, scale: { start: 3, end: 1 },
+      tint: [0x5b6578, 0x8d92a6, 0xe4343f, 0x1b1b2f], gravityY: 380, rotate: { min: 0, max: 360 },
+      emitting: false, maxAliveParticles: limit
+    }).setDepth(DEPTH.PARTICLES);
+
+    this.sparkle = s.add.particles(0, 0, 'spark', {
+      speed: { min: 30, max: 90 }, lifespan: 350, scale: { start: 1.2, end: 0 },
+      tint: [0xffffff, 0xfff275], emitting: false, maxAliveParticles: limit
+    }).setDepth(DEPTH.PARTICLES);
+
+    this.emitters = [this.dust, this.sparks, this.debris, this.sparkle];
+
+    // textos flutuantes reciclados
+    this.floats = [];
+    for (let i = 0; i < FLOAT_POOL; i++) {
+      const t = s.add.text(0, 0, '', {
+        fontFamily: FONT.FAMILY, fontSize: FONT.SMALL, color: '#ffffff', stroke: '#14121f', strokeThickness: 3
+      }).setOrigin(0.5).setDepth(DEPTH.FLOATING_TEXT).setVisible(false);
+      t.life = 0;
+      this.floats.push(t);
+    }
+  }
+
+  get particlesOn() { return this.settings.particles; }
+
+  _burst(emitter, n, x, y, tint) {
+    if (!this.particlesOn) return;
+    if (tint !== undefined) emitter.setParticleTint(tint);
+    emitter.explode(n, x, y);
+  }
+
+  dustAt(x, y, n = 6) { this._burst(this.dust, n, x, y); }
+  sparksAt(x, y, n = 10) { this._burst(this.sparks, n, x, y); }
+  debrisAt(x, y, n = 14) { this._burst(this.debris, n, x, y); }
+  sparkleAt(x, y, n = 6) { this._burst(this.sparkle, n, x, y); }
+
+  explosion(x, y) {
+    this.debrisAt(x, y, 26);
+    this.sparksAt(x, y, 20);
+    this.dustAt(x, y, 14);
+  }
+
+  shake(intensity = FX.SHAKE_HIT, duration = FX.SHAKE_DURATION) {
+    const mode = this.settings.shake;
+    if (mode === 'off') return;
+    const k = mode === 'reduced' ? 0.3 : 1;
+    this.scene.cameras.main.shake(duration, intensity * k);
+  }
+
+  flash(color = 0xffffff, duration = 90) {
+    if (!this.settings.flashes) return;
+    const r = (color >> 16) & 255, g = (color >> 8) & 255, b = color & 255;
+    this.scene.cameras.main.flash(duration, r, g, b);
+  }
+
+  floatText(x, y, text, color = '#ffffff') {
+    const t = this.floats.find((o) => !o.visible) || this.floats[0];
+    t.setText(text).setColor(color).setPosition(x, y).setVisible(true).setAlpha(1).setScale(1);
+    t.life = 0.8;
+  }
+
+  update(dt) {
+    for (const t of this.floats) {
+      if (!t.visible) continue;
+      t.life -= dt;
+      t.y -= 30 * dt;
+      t.setAlpha(Math.min(1, t.life / 0.4));
+      if (t.life <= 0) t.setVisible(false);
+    }
+  }
+}
+
+return { EffectsManager };
+})();
+
+// ---- src/systems/ModeRules.js ----
+__m['src/systems/ModeRules.js'] = (function () {
+// =============================================================
+// ModeRules.js — regras específicas de cada modo de jogo
+// (Strategy). A GameScene chama sempre a mesma interface:
+//   update(dt, ctx)           -> { gameOver, reason } | null
+//   onCollision(severity)     -> { gameOver, reason, label }
+//   onTimePickup(seconds)
+//   speedMultiplier()         -> multiplicador de velocidade do caminhão
+//   hud()                     -> dados extras para o HUD
+//   finalBonus(score)         -> bônus final
+// =============================================================
+const { DAMAGE, TIME_ATTACK, ESCAPE } = __m['src/config/balance.js'];
+const { PIXELS_PER_METER } = __m['src/config/gameConfig.js'];
+
+// ---------------- Estrada Infinita ----------------
+class EndlessRules {
+  constructor() {
+    this.lives = DAMAGE.START_LIVES;
+    this.maxLives = DAMAGE.MAX_LIVES;
+  }
+
+  update() { return null; }
+
+  onCollision(severity) {
+    if (severity === 'severe' && DAMAGE.SEVERE_IS_FATAL) {
+      this.lives = 0;
+      return { gameOver: true, reason: 'ACIDENTE GRAVE', fatal: true, label: 'ACIDENTE!' };
+    }
+    this.lives = Math.max(0, this.lives - 1);
+    if (this.lives <= 0) return { gameOver: true, reason: 'SEM VIDAS', fatal: false, label: '-1' };
+    return { gameOver: false, label: '-1 VIDA' };
+  }
+
+  addLife() {
+    if (this.lives >= this.maxLives) return false;
+    this.lives++;
+    return true;
+  }
+
+  onTimePickup() {}
+  speedMultiplier() { return 1; }
+  hud() { return { lives: this.lives, maxLives: Math.max(DAMAGE.START_LIVES, this.lives) }; }
+  finalBonus() { return 0; }
+}
+
+// ---------------- Contra o Tempo ----------------
+class TimeAttackRules {
+  constructor() {
+    this.timeLeft = TIME_ATTACK.START_TIME;
+    this.timeGained = 0;
+    this.lives = 0;
+    this.maxLives = 0;
+    this._lastWarn = -1;
+  }
+
+  update(dt, ctx) {
+    this.timeLeft = Math.max(0, this.timeLeft - dt);
+    const sec = Math.ceil(this.timeLeft);
+    if (this.timeLeft <= 5 && sec !== this._lastWarn && this.timeLeft > 0) {
+      this._lastWarn = sec;
+      ctx.sfx.play('warning');
+    }
+    if (this.timeLeft <= 0) return { gameOver: true, reason: 'TEMPO ESGOTADO' };
+    return null;
+  }
+
+  onCollision(severity) {
+    const p = severity === 'severe' ? TIME_ATTACK.SEVERE_PENALTY : TIME_ATTACK.COLLISION_PENALTY;
+    this.timeLeft = Math.max(0, this.timeLeft - p);
+    if (this.timeLeft <= 0) return { gameOver: true, reason: 'TEMPO ESGOTADO', label: `-${p}s` };
+    return { gameOver: false, label: `-${p}s` };
+  }
+
+  onTimePickup(seconds) {
+    this.timeLeft = Math.min(TIME_ATTACK.MAX_TIME, this.timeLeft + seconds);
+    this.timeGained += seconds;
+  }
+
+  addLife() { return false; }
+  speedMultiplier() { return 1; }
+  hud() { return { timeLeft: this.timeLeft }; }
+  // Bônus pelo tempo extra conquistado durante a corrida
+  finalBonus() { return this.timeGained; }
+}
+
+// ---------------- Fuga da Tempestade ----------------
+class EscapeRules {
+  constructor() {
+    this.gap = ESCAPE.START_GAP_M;   // metros entre a tempestade e o caminhão
+    this.elapsed = 0;
+    this.lives = 0;
+    this.maxLives = 0;
+    this.slowTimer = 0;
+  }
+
+  get threatFactor() {
+    const t = Math.min(1, this.elapsed / ESCAPE.THREAT_RAMP_TIME);
+    return ESCAPE.THREAT_FACTOR_START + (ESCAPE.THREAT_FACTOR_END - ESCAPE.THREAT_FACTOR_START) * t;
+  }
+
+  update(dt, ctx) {
+    this.elapsed += dt;
+    this.slowTimer = Math.max(0, this.slowTimer - dt);
+    const threatSpeed = ctx.baseSpeed * this.threatFactor;          // px/s
+    const delta = (ctx.truckSpeed - threatSpeed) * dt / PIXELS_PER_METER;
+    this.gap = Math.min(ESCAPE.MAX_GAP_M, this.gap + delta);
+    if (this.gap <= 0) {
+      this.gap = 0;
+      return { gameOver: true, reason: 'A TEMPESTADE TE ALCANÇOU' };
+    }
+    return null;
+  }
+
+  onCollision(severity) {
+    this.slowTimer = severity === 'severe' ? ESCAPE.SEVERE_STUN_TIME : ESCAPE.STUN_TIME;
+    return { gameOver: false, label: 'DEVAGAR!' };
+  }
+
+  addLife() { return false; }
+  onTimePickup() {}
+  // após batida o caminhão fica mais lento por um tempo (a tempestade se aproxima)
+  speedMultiplier() { return this.slowTimer > 0 ? 0.6 : 1; }
+  hud() { return { threatGap: this.gap, threatDanger: this.gap < ESCAPE.DANGER_GAP_M }; }
+  finalBonus() { return 0; }
+}
+
+function createRules(modeId) {
+  switch (modeId) {
+    case 'timeattack': return new TimeAttackRules();
+    case 'escape': return new EscapeRules();
+    default: return new EndlessRules();
+  }
+}
+
+return { EndlessRules, TimeAttackRules, EscapeRules, createRules };
+})();
+
+// ---- src/scenes/GameScene.js ----
+__m['src/scenes/GameScene.js'] = (function () {
+// =============================================================
+// GameScene — estado PLAYING. ORQUESTRA os sistemas:
+//   InputManager → Truck → DifficultyManager → RoadManager
+//   ObstacleManager/PickupManager → CollisionSystem
+//   ScoreManager → ModeRules → EffectsManager/Audio → HUD
+// Não contém regras de pontuação, geração ou controle direto.
+// =============================================================
+const { SCENES, GAME_STATE, GAME_WIDTH, GAME_HEIGHT, DEPTH, FONT, UI_COLORS, PIXELS_PER_METER, laneCenter } = __m['src/config/gameConfig.js'];
+const { TRUCK, DASH, FX, POWERUPS, SPEED, ESCAPE } = __m['src/config/balance.js'];
+const { MODES } = __m['src/config/modes.js'];
+const { Truck } = __m['src/entities/Truck.js'];
+const { InputManager } = __m['src/systems/InputManager.js'];
+const { ScoreManager } = __m['src/systems/ScoreManager.js'];
+const { DifficultyManager } = __m['src/systems/DifficultyManager.js'];
+const { ObstacleManager } = __m['src/systems/ObstacleManager.js'];
+const { PickupManager } = __m['src/systems/PickupManager.js'];
+const { CollisionSystem, CATEGORY } = __m['src/systems/CollisionSystem.js'];
+const { RoadManager } = __m['src/systems/RoadManager.js'];
+const { EffectsManager } = __m['src/systems/EffectsManager.js'];
+const { createRules } = __m['src/systems/ModeRules.js'];
+const { StorageManager } = __m['src/systems/StorageManager.js'];
+const { AudioManager, SFXManager, MusicManager } = __m['src/systems/AudioManager.js'];
+const { pixelText, prepareCamera } = __m['src/ui/UIFactory.js'];
+
+class GameScene extends Phaser.Scene {
+  constructor() { super(SCENES.GAME); }
+
+  init(data) {
+    this.modeId = (data && MODES[data.mode]) ? data.mode : 'endless';
+    this.mode = MODES[this.modeId];
+  }
+
+  create() {
+    this.registry.set('state', GAME_STATE.PLAYING);
+    this.settings = StorageManager.getSettings();
+    const hc = this.settings.highContrast;
+    prepareCamera(this);
+
+    // ---------- sistemas ----------
+    this.road = new RoadManager(this, { highContrast: hc, speedLines: this.settings.particles });
+    this.effects = new EffectsManager(this);
+    this.inputs = new InputManager(this, { touchControls: true });
+    this.difficulty = new DifficultyManager();
+    this.rules = createRules(this.modeId);
+    this.score = new ScoreManager(this.modeId, { onMultiplierUp: (m) => this._onMultiplier(m) });
+
+    this.truck = new Truck(this, laneCenter(2), TRUCK.HOME_Y);
+    this.truck.trailEnabled = this.settings.particles;
+
+    this.pickups = new PickupManager(this, { allowRepair: this.mode.allowRepair, timePickups: this.mode.usesTimer });
+    this.pickups.livesProvider = () => this.rules.lives;
+    this.pickups.maxLives = this.rules.maxLives;
+
+    this.obstacles = new ObstacleManager(this, {
+      highContrast: hc,
+      onRowSpawned: (row, y, gap) => this.pickups.onRow(row, y, gap)
+    });
+
+    this.collisions = new CollisionSystem({
+      onHit: (o) => this._onHit(o),
+      onDodge: (o) => this._onDodge(o),
+      onJumpOver: (o) => this._onJumpOver(o),
+      onCollect: (c) => this._onCollect(c),
+      onPowerUp: (p) => this._onPowerUp(p)
+    });
+
+    this.storm = this.mode.usesThreat ? this._createStorm() : null;
+
+    // ---------- eventos do caminhão (feedback) ----------
+    this._truckHandlers = {
+      'truck:jump': () => {
+        SFXManager.play('jump');
+        this.effects.dustAt(this.truck.x, this.truck.y + 20, 5);
+      },
+      'truck:land': () => {
+        SFXManager.play('land');
+        this.effects.dustAt(this.truck.x, this.truck.y + 22, 8);
+      },
+      'truck:dash': () => {
+        SFXManager.play('dash');
+        this.camKick = DASH.CAMERA_KICK;
+      },
+      'truck:edge': () => this.effects.dustAt(this.truck.x, this.truck.y, 3)
+    };
+    Object.entries(this._truckHandlers).forEach(([ev, fn]) => this.events.on(ev, fn));
+
+    // ---------- estado ----------
+    this.gameOverPending = false;
+    this.camKick = 0;
+    this.comboFxTimer = 0;
+    this.gearPitch = 0;
+    this.gearPitchTimer = 0;
+    this.dangerTimer = 0;
+    this._magnet = { x: 0, y: 0, radius: POWERUPS.MAGNET_RADIUS, pull: POWERUPS.MAGNET_PULL };
+    this._hud = { powerups: [] };
+
+    // ---------- HUD e áudio ----------
+    this.scene.launch(SCENES.HUD, { mode: this.modeId });
+    MusicManager.play('game');
+    MusicManager.duck(false);
+    AudioManager.core.whenUnlocked(() => { if (this.sys.isActive() && !this.gameOverPending) SFXManager.startEngine(); });
+
+    this._onResume = () => {
+      this.registry.set('state', GAME_STATE.PLAYING);
+      MusicManager.duck(false);
+    };
+    this.events.on('resume', this._onResume);
+    this.events.once('shutdown', () => this._cleanup());
+
+    this._banner(this.mode.name, 'VAI!');
+  }
+
+  // ===========================================================
+  // LOOP PRINCIPAL
+  // ===========================================================
+  update(time, delta) {
+    const dt = Math.min(delta / 1000, 1 / 20);   // evita saltos após troca de aba
+    this.inputs.update();
+
+    if (!this.gameOverPending) {
+      if (this.inputs.justPressed('pause')) { this._pause(); return; }
+      if (this.inputs.justPressed('jump')) this.truck.tryJump();
+      if (this.inputs.justPressed('dash')) this.truck.tryDash(this.inputs.moveX);
+    }
+
+    const params = this.difficulty.update(this.score.time, this.score.meters);
+    const base = params.speed;
+
+    this.truck.update(dt, this.inputs, base, this.rules.speedMultiplier());
+    const dy = this.truck.speed * dt;
+
+    this.road.update(dt, dy, this.truck.speed, this.score.meters);
+    this.obstacles.update(dt, dy, params);
+
+    let magnet = null;
+    if (this.truck.hasMagnet) {
+      this._magnet.x = this.truck.x; this._magnet.y = this.truck.y;
+      magnet = this._magnet;
+    }
+    this.pickups.update(dt, dy, magnet);
+
+    if (!this.gameOverPending) {
+      this.collisions.update(this.truck, this.obstacles, this.pickups);
+      this.score.tick(dt, dy / PIXELS_PER_METER);
+      const res = this.rules.update(dt, { baseSpeed: base, truckSpeed: this.truck.speed, sfx: SFXManager });
+      if (res && res.gameOver) {
+        const caught = this.modeId === 'escape';
+        this._triggerGameOver(res.reason, { wreck: caught, fatal: false });
+      }
+    }
+
+    this.truck.updateView(dt, dy);
+    this.effects.update(dt);
+    if (this.storm) this._updateStorm(dt);
+    this._updateComboFx(dt);
+    this._updateCamera(dt);
+
+    SFXManager.updateEngine(this.truck.speed / SPEED.MAX, !this.gameOverPending);
+    this.gearPitchTimer -= dt;
+    if (this.gearPitchTimer <= 0) this.gearPitch = 0;
+  }
+
+  // ===========================================================
+  // COLISÕES / EVENTOS DE JOGO
+  // ===========================================================
+  _onHit(o) {
+    const t = this.truck;
+    const isHole = o.category === CATEGORY.HOLE;
+
+    if (t.hasShield) {
+      t.absorbHit();
+      if (!isHole) this.obstacles.destroyObstacle(o);
+      this.effects.sparksAt(t.x, t.y - 20, 12);
+      this.effects.flash(0x6cc7ff, 80);
+      this.effects.floatText(t.x, t.y - 40, 'ESCUDO!', UI_COLORS.INFO);
+      SFXManager.play('land');
+      return;
+    }
+
+    this.score.onCollision();
+    const res = this.rules.onCollision(o.def.severity);
+    t.applyHit();
+
+    this.effects.shake(FX.SHAKE_HIT);
+    this.effects.flash(0xff5a5a, 90);
+    this.effects.debrisAt(o.x, o.y, isHole ? 8 : 16);
+    this.effects.dustAt(t.x, t.y, 6);
+    SFXManager.play('hit');
+    if (res.label) this.effects.floatText(t.x, t.y - 40, res.label, UI_COLORS.DANGER);
+    if (!isHole) this.obstacles.destroyObstacle(o);
+
+    if (res.gameOver) this._triggerGameOver(res.reason, { wreck: true, fatal: !!res.fatal });
+  }
+
+  _onDodge(o) {
+    if (!o.onRoad && o.id !== 'animal') return;
+    const pts = this.score.onDodge();
+    if (Math.abs(o.x - this.truck.x) < 72) {
+      this.effects.floatText(o.x, o.y - 10, '+' + pts, UI_COLORS.TEXT);
+    }
+  }
+
+  _onJumpOver(o) {
+    const pts = this.score.onHoleJumped();
+    this.effects.floatText(o.x, o.y - 14, `+${pts} PULO!`, UI_COLORS.GOOD);
+    this.effects.sparkleAt(o.x, o.y, 6);
+  }
+
+  _onCollect(c) {
+    if (c.kind === 'gear') {
+      this.score.onGear();
+      SFXManager.play('collect', { pitch: Math.min(12, this.gearPitch) });
+      this.gearPitch += 2;
+      this.gearPitchTimer = 0.6;
+      this.effects.sparkleAt(c.x, c.y, 5);
+    } else {
+      const s = c.def.timeBonus;
+      this.rules.onTimePickup(s);
+      SFXManager.play('time');
+      this.effects.floatText(c.x, c.y - 12, `+${s}s`, UI_COLORS.INFO);
+      this.effects.sparkleAt(c.x, c.y, 10);
+    }
+  }
+
+  _onPowerUp(p) {
+    const t = this.truck;
+    const def = p.def;
+    this.score.onPowerUp();
+    SFXManager.play('powerup');
+    this.effects.flash(def.color, 120);
+    this.effects.sparkleAt(p.x, p.y, 14);
+    let label = def.label;
+    switch (p.type) {
+      case 'shield': t.setShield(def.duration); break;
+      case 'boost': t.setBoost(def.duration); SFXManager.play('accel'); break;
+      case 'repair': if (!this.rules.addLife()) label = '+PONTOS'; break;
+      case 'dash_reset': t.resetDash(); break;
+      case 'magnet': t.setMagnet(def.duration); break;
+      default: break;
+    }
+    this.effects.floatText(t.x, t.y - 44, label, '#' + def.color.toString(16).padStart(6, '0'));
+  }
+
+  _onMultiplier(m) {
+    SFXManager.play('combo', { level: m });
+    this.effects.floatText(this.truck.x, this.truck.y - 52, `COMBO x${m}!`, UI_COLORS.COMBO[Math.min(m - 1, UI_COLORS.COMBO.length - 1)]);
+  }
+
+  // ===========================================================
+  // GAME OVER / PAUSA
+  // ===========================================================
+  _triggerGameOver(reason, { wreck = true, fatal = false } = {}) {
+    if (this.gameOverPending) return;
+    this.gameOverPending = true;
+    this.obstacles.enabled = false;
+    const t = this.truck;
+
+    if (wreck) {
+      t.wreck();
+      this.effects.explosion(t.x, t.y);
+      this.effects.shake(fatal ? FX.SHAKE_FATAL : FX.SHAKE_HIT * 1.5, 320);
+      this.effects.flash(0xff7a3c, 160);
+      SFXManager.play('crash');
+      this.tweens.add({ targets: t.sprite, angle: t.sprite.angle + (Math.random() < 0.5 ? -35 : 35), duration: 600, ease: 'Cubic.out' });
+    } else {
+      t.halt();
+    }
+    SFXManager.stopEngine();
+    MusicManager.stop();
+    this.time.delayedCall(450, () => SFXManager.play('gameover'));
+    this._banner(reason, '', UI_COLORS.DANGER);
+    this.time.delayedCall(1500, () => this._finish(reason));
+  }
+
+  _finish(reason) {
+    const bonus = this.rules.finalBonus();
+    if (bonus > 0) this.score.addTimeBonus(bonus);
+    const results = this.score.finalize(reason);
+    this.registry.set('state', GAME_STATE.GAME_OVER);
+    this.scene.stop(SCENES.HUD);
+    this.scene.start(SCENES.GAME_OVER, results);
+  }
+
+  _pause() {
+    this.registry.set('state', GAME_STATE.PAUSED);
+    MusicManager.duck(true);
+    SFXManager.updateEngine(0, false);
+    this.scene.launch(SCENES.PAUSE, { mode: this.modeId });
+    this.scene.pause();
+  }
+
+  _cleanup() {
+    SFXManager.stopEngine();
+    Object.entries(this._truckHandlers).forEach(([ev, fn]) => this.events.off(ev, fn));
+    this.events.off('resume', this._onResume);
+  }
+
+  // ===========================================================
+  // VISUAIS AUXILIARES
+  // ===========================================================
+  _banner(title, subtitle = '', color = UI_COLORS.ACCENT) {
+    const t1 = pixelText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40, title, { size: FONT.MEDIUM, color })
+      .setDepth(DEPTH.FLOATING_TEXT + 5).setScrollFactor(0).setScale(0.6).setAlpha(0);
+    const objs = [t1];
+    if (subtitle) {
+      objs.push(pixelText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 12, subtitle, { size: FONT.LARGE, color: UI_COLORS.TEXT })
+        .setDepth(DEPTH.FLOATING_TEXT + 5).setScrollFactor(0).setScale(0.6).setAlpha(0));
+    }
+    this.tweens.add({ targets: objs, scale: 1, alpha: 1, duration: 220, ease: 'Back.out' });
+    this.tweens.add({ targets: objs, alpha: 0, delay: 1100, duration: 300, onComplete: () => objs.forEach((o) => o.destroy()) });
+  }
+
+  _updateComboFx(dt) {
+    if (this.score.multiplier < 4 || !this.truck.alive) return;
+    this.comboFxTimer -= dt;
+    if (this.comboFxTimer <= 0) {
+      this.comboFxTimer = 0.12 - Math.min(0.08, (this.score.multiplier - 4) * 0.02);
+      this.effects.sparkleAt(this.truck.x + Phaser.Math.Between(-10, 10), this.truck.y + 26, 1);
+    }
+  }
+
+  _updateCamera(dt) {
+    const cam = this.cameras.main;
+    const targetX = (this.truck.x - GAME_WIDTH / 2) * 0.06;   // acompanha suavemente
+    cam.scrollX += (targetX - cam.scrollX) * Math.min(1, dt * 6);
+    this.camKick = Math.max(0, this.camKick - dt * 40);
+    cam.scrollY = -this.camKick;                               // "tranco" do dash
+  }
+
+  // ---------- Tempestade (modo Fuga) ----------
+  _createStorm() {
+    const c = this.add.container(0, GAME_HEIGHT + 40).setDepth(DEPTH.THREAT);
+    const edge = this.add.tileSprite(-20, 0, GAME_WIDTH + 40, 48, 'storm_edge').setOrigin(0, 0);
+    const body = this.add.rectangle(-20, 46, GAME_WIDTH + 40, GAME_HEIGHT + 60, 0x2c2350).setOrigin(0, 0);
+    const bolt = this.add.graphics();
+    c.add([body, edge, bolt]);
+    const rain = this.add.particles(0, 0, 'rain', {
+      x: { min: 0, max: GAME_WIDTH }, y: -10, lifespan: 700, speedY: { min: 380, max: 520 }, speedX: -60,
+      quantity: 1, frequency: 40, alpha: { start: 0.6, end: 0.2 }, maxAliveParticles: 40
+    }).setDepth(DEPTH.THREAT - 1);
+    if (!this.settings.particles) rain.stop();
+    return { c, edge, body, bolt, rain, y: GAME_HEIGHT + 40, boltTimer: 1.5 };
+  }
+
+  _updateStorm(dt) {
+    const s = this.storm;
+    const gap = this.rules.gap;
+    const show = 60;  // metros a partir dos quais a tempestade aparece na tela
+    const reach = this.truck.y - 16;
+    const k = Math.max(0, Math.min(1, 1 - gap / show));
+    const targetY = GAME_HEIGHT + 40 - k * (GAME_HEIGHT + 40 - reach);
+    s.y += (targetY - s.y) * Math.min(1, dt * 4);
+    s.c.y = s.y;
+    s.edge.tilePositionX += dt * 40;
+    s.edge.y = Math.sin(this.score.time * 3) * 2;
+
+    // relâmpagos
+    s.boltTimer -= dt;
+    s.bolt.clear();
+    if (s.boltTimer <= 0) {
+      s.boltTimer = 1 + Math.random() * 2.5;
+      if (s.y < GAME_HEIGHT) {
+        s.bolt.lineStyle(2, 0xfff6a8, 1);
+        let x = Phaser.Math.Between(40, GAME_WIDTH - 40), y = 10;
+        s.bolt.beginPath(); s.bolt.moveTo(x, y);
+        for (let i = 0; i < 5; i++) { x += Phaser.Math.Between(-12, 12); y += 14; s.bolt.lineTo(x, y); }
+        s.bolt.strokePath();
+        if (this.settings.flashes) this.cameras.main.flash(60, 180, 170, 255);
+      }
+    }
+
+    // alerta de perigo
+    if (gap < ESCAPE.DANGER_GAP_M && !this.gameOverPending) {
+      this.dangerTimer -= dt;
+      if (this.dangerTimer <= 0) {
+        this.dangerTimer = 0.9;
+        SFXManager.play('warning');
+        this.effects.shake(0.004, 120);
+      }
+    }
+  }
+
+  // Dados lidos pela HUDScene a cada frame (objeto reaproveitado)
+  getHudState() {
+    const h = this._hud;
+    const sc = this.score;
+    h.mode = this.modeId;
+    h.score = sc.displayScore;
+    h.best = Math.max(sc.bestScore, sc.displayScore);
+    h.distance = sc.distance;
+    h.multiplier = sc.multiplier;
+    h.streak = sc.streak;
+    h.dashRatio = this.truck.dashReadyRatio;
+    h.jumpReady = this.truck.jumpReady;
+    Object.assign(h, this.rules.hud());
+    h.powerups.length = 0;
+    const T = POWERUPS.TYPES;
+    if (this.truck.hasShield) h.powerups.push({ label: T.shield.label, color: T.shield.color, ratio: this.truck.shieldTimer / T.shield.duration });
+    if (this.truck.isBoosting) h.powerups.push({ label: T.boost.label, color: T.boost.color, ratio: this.truck.boostTimer / T.boost.duration });
+    if (this.truck.hasMagnet) h.powerups.push({ label: T.magnet.label, color: T.magnet.color, ratio: this.truck.magnetTimer / T.magnet.duration });
+    h.fps = this.game.loop.actualFps;
+    return h;
+  }
+}
+
+return { GameScene };
+})();
+
+// ---- src/scenes/HUDScene.js ----
+__m['src/scenes/HUDScene.js'] = (function () {
+// =============================================================
+// HUDScene — HUD pixel art, sempre sobre a GameScene (cena
+// paralela, sem ser afetada por shake/scroll da câmera do jogo).
+// Lê GameScene.getHudState() a cada frame; só atualiza textos
+// quando o valor muda.
+// =============================================================
+const { SCENES, GAME_WIDTH, GAME_HEIGHT, FONT, UI_COLORS, ROAD } = __m['src/config/gameConfig.js'];
+const { ESCAPE } = __m['src/config/balance.js'];
+const { StorageManager } = __m['src/systems/StorageManager.js'];
+const { pixelText } = __m['src/ui/UIFactory.js'];
+
+const L = 10;                       // coluna esquerda (sobre a grama)
+const R = GAME_WIDTH - 10;          // coluna direita
+
+class HUDScene extends Phaser.Scene {
+  constructor() { super(SCENES.HUD); }
+
+  init(data) { this.modeId = data.mode; }
+
+  create() {
+    this.cameras.main.resetFX();
+    this.scene.bringToTop();
+    this.gs = this.scene.get(SCENES.GAME);
+    this.settings = StorageManager.getSettings();
+    this.cache = {};
+
+    const small = { size: FONT.SMALL, origin: 0, align: 'left' };
+    const g = this.add.graphics();
+    // painéis translúcidos laterais
+    g.fillStyle(0x14121f, 0.55);
+    g.fillRect(4, 4, ROAD.X - 18, 96);
+    g.fillRect(ROAD.RIGHT + 14, 4, GAME_WIDTH - ROAD.RIGHT - 18, 64);
+    g.fillRect(4, GAME_HEIGHT - 44, 120, 40);
+
+    pixelText(this, L, 10, 'SCORE', { ...small, color: UI_COLORS.TEXT_DIM, stroke: false });
+    this.scoreT = pixelText(this, L, 22, '0', { ...small, size: FONT.MEDIUM, color: UI_COLORS.TEXT });
+    this.bestT = pixelText(this, L, 44, 'RECORD 0', { ...small, color: UI_COLORS.ACCENT, stroke: false });
+    this.distT = pixelText(this, L, 60, '0 m', { ...small, color: UI_COLORS.INFO, stroke: false });
+    this.comboT = pixelText(this, L, 78, 'x1', { ...small, color: UI_COLORS.TEXT });
+    this.streakT = pixelText(this, L + 36, 78, '', { ...small, color: UI_COLORS.TEXT_DIM, stroke: false });
+
+    // ----- canto direito: vidas / cronômetro / ameaça -----
+    const rx = ROAD.RIGHT + 20;
+    if (this.modeId === 'endless') {
+      pixelText(this, rx, 10, 'VIDAS', { ...small, color: UI_COLORS.TEXT_DIM, stroke: false });
+      this.hearts = [];
+      for (let i = 0; i < 5; i++) {
+        this.hearts.push(this.add.image(rx + 8 + i * 22, 34, 'heart').setOrigin(0.5).setVisible(false));
+      }
+    } else if (this.modeId === 'timeattack') {
+      pixelText(this, rx, 10, 'TEMPO', { ...small, color: UI_COLORS.TEXT_DIM, stroke: false });
+      this.timerT = pixelText(this, rx, 24, '00.0', { ...small, size: FONT.LARGE, color: UI_COLORS.TEXT });
+    } else {
+      pixelText(this, rx, 10, 'TEMPESTADE', { ...small, color: UI_COLORS.TEXT_DIM, stroke: false });
+      this.threatBar = this.add.graphics();
+      this.threatT = pixelText(this, rx, 46, '', { ...small, color: UI_COLORS.TEXT, stroke: false });
+    }
+
+    // ----- power-ups ativos -----
+    this.puGfx = this.add.graphics();
+    this.puTexts = [0, 1, 2].map((i) => pixelText(this, rx, 80 + i * 22, '', { ...small, stroke: true }).setVisible(false));
+
+    // ----- habilidades (canto inferior esquerdo) -----
+    this.add.image(18, GAME_HEIGHT - 32, 'icon_dash').setOrigin(0.5);
+    pixelText(this, 30, GAME_HEIGHT - 36, 'DASH', { ...small, color: UI_COLORS.TEXT, stroke: false });
+    this.dashGfx = this.add.graphics();
+    this.jumpIcon = this.add.image(18, GAME_HEIGHT - 14, 'icon_jump').setOrigin(0.5);
+    this.jumpT = pixelText(this, 30, GAME_HEIGHT - 18, 'PULO', { ...small, color: UI_COLORS.TEXT, stroke: false });
+
+    this.fpsT = pixelText(this, GAME_WIDTH / 2, GAME_HEIGHT - 10, '', { ...small, origin: 0.5, stroke: false, color: UI_COLORS.TEXT_DIM })
+      .setVisible(!!this.settings.showFps);
+
+    this.lastMult = 1;
+    this.t = 0;
+  }
+
+  _set(textObj, key, value) {
+    if (this.cache[key] === value) return;
+    this.cache[key] = value;
+    textObj.setText(value);
+  }
+
+  update(time, delta) {
+    if (!this.gs || !this.gs.sys.settings.active || !this.gs.getHudState) return;
+    const dt = delta / 1000;
+    this.t += dt;
+    const h = this.gs.getHudState();
+
+    this._set(this.scoreT, 'score', String(h.score).padStart(6, '0'));
+    this._set(this.bestT, 'best', 'RECORD ' + h.best);
+    this._set(this.distT, 'dist', h.distance + ' m');
+
+    // combo: cor e pulso quando o multiplicador sobe
+    const m = h.multiplier;
+    this._set(this.comboT, 'mult', 'x' + m);
+    this._set(this.streakT, 'streak', h.streak > 0 ? `COMBO ${h.streak}` : '');
+    if (m !== this.lastMult) {
+      this.comboT.setColor(UI_COLORS.COMBO[Math.min(m - 1, UI_COLORS.COMBO.length - 1)]);
+      if (m > this.lastMult) {
+        this.tweens.killTweensOf(this.comboT);
+        this.comboT.setScale(1.8);
+        this.tweens.add({ targets: this.comboT, scale: 1, duration: 260, ease: 'Back.out' });
+      }
+      this.lastMult = m;
+    }
+    if (m >= 4) this.comboT.setAlpha(0.75 + Math.sin(this.t * 12) * 0.25); else this.comboT.setAlpha(1);
+
+    // modo
+    if (this.hearts) {
+      const maxShown = Math.max(h.maxLives || 3, h.lives || 0);
+      this.hearts.forEach((img, i) => {
+        img.setVisible(i < maxShown);
+        img.setTexture(i < h.lives ? 'heart' : 'heart_empty');
+      });
+    }
+    if (this.timerT) {
+      const tl = Math.max(0, h.timeLeft || 0);
+      this._set(this.timerT, 'timer', tl.toFixed(1).padStart(4, '0'));
+      const danger = tl <= 10;
+      this.timerT.setColor(danger ? UI_COLORS.DANGER : UI_COLORS.TEXT);
+      if (danger) this.timerT.setScale(1 + Math.max(0, Math.sin(this.t * 10)) * 0.08); else this.timerT.setScale(1);
+    }
+    if (this.threatBar) {
+      const rx = ROAD.RIGHT + 20;
+      const ratio = Math.max(0, Math.min(1, h.threatGap / ESCAPE.MAX_GAP_M));
+      const w = GAME_WIDTH - rx - 16;
+      const gb = this.threatBar;
+      gb.clear();
+      gb.fillStyle(0x2b2d37, 1).fillRect(rx, 26, w, 10);
+      const col = h.threatDanger ? (Math.floor(this.t * 6) % 2 ? 0xff5a5a : 0xffd93d) : 0xb57bff;
+      gb.fillStyle(col, 1).fillRect(rx, 26, Math.max(2, w * ratio), 10);
+      gb.lineStyle(2, 0xf4f4f4, 1).strokeRect(rx, 26, w, 10);
+      this._set(this.threatT, 'threat', Math.max(0, Math.floor(h.threatGap)) + ' m');
+      this.threatT.setColor(h.threatDanger ? UI_COLORS.DANGER : UI_COLORS.TEXT);
+    }
+
+    // power-ups com duração visível
+    const pg = this.puGfx;
+    pg.clear();
+    const rx = ROAD.RIGHT + 20;
+    this.puTexts.forEach((t, i) => {
+      const p = h.powerups[i];
+      if (!p) { t.setVisible(false); return; }
+      t.setVisible(true);
+      this._set(t, 'pu' + i, p.label);
+      const y = 80 + i * 22;
+      pg.fillStyle(0x2b2d37, 1).fillRect(rx, y + 11, 100, 4);
+      pg.fillStyle(p.color, 1).fillRect(rx, y + 11, 100 * Math.max(0, Math.min(1, p.ratio)), 4);
+    });
+
+    // dash cooldown
+    const dg = this.dashGfx;
+    dg.clear();
+    const ready = h.dashRatio >= 1;
+    dg.fillStyle(0x2b2d37, 1).fillRect(66, GAME_HEIGHT - 36, 50, 8);
+    dg.fillStyle(ready ? 0x6ee7a0 : 0xb57bff, 1).fillRect(66, GAME_HEIGHT - 36, 50 * h.dashRatio, 8);
+    if (ready) dg.lineStyle(1, 0xffffff, 0.6 + Math.sin(this.t * 8) * 0.4).strokeRect(66, GAME_HEIGHT - 36, 50, 8);
+    this.jumpIcon.setAlpha(h.jumpReady ? 1 : 0.3);
+    this.jumpT.setAlpha(h.jumpReady ? 1 : 0.3);
+
+    if (this.settings.showFps) this._set(this.fpsT, 'fps', Math.round(h.fps) + ' FPS');
+  }
+}
+
+return { HUDScene };
+})();
+
+// ---- src/scenes/PauseScene.js ----
+__m['src/scenes/PauseScene.js'] = (function () {
+// =============================================================
+// PauseScene — estado PAUSED. A GameScene fica pausada (física,
+// spawning, cronômetro, movimento e pontuação congelados).
+// =============================================================
+const { SCENES, GAME_STATE, GAME_WIDTH, GAME_HEIGHT, FONT, UI_COLORS } = __m['src/config/gameConfig.js'];
+const { InputManager } = __m['src/systems/InputManager.js'];
+const { MusicManager } = __m['src/systems/AudioManager.js'];
+const { MenuList } = __m['src/ui/MenuList.js'];
+const { pixelText, panel, dimBackground, footerHint } = __m['src/ui/UIFactory.js'];
+
+class PauseScene extends Phaser.Scene {
+  constructor() { super(SCENES.PAUSE); }
+
+  init(data) { this.modeId = (data && data.mode) || 'endless'; }
+
+  create() {
+    this.registry.set('state', GAME_STATE.PAUSED);
+    this.cameras.main.resetFX();
+    this.scene.bringToTop();
+    dimBackground(this, 0.65);
+    panel(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, 260, 170);
+    const title = pixelText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 56, 'PAUSADO', { size: FONT.LARGE, color: UI_COLORS.ACCENT });
+    this.tweens.add({ targets: title, alpha: 0.6, duration: 600, yoyo: true, repeat: -1 });
+
+    this.inputs = new InputManager(this);
+    this.menu = new MenuList(this, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 8, [
+      { label: 'CONTINUAR', onSelect: () => this._resume() },
+      { label: 'REINICIAR', onSelect: () => this._restart() },
+      { label: 'MENU PRINCIPAL', onSelect: () => this._toMenu() }
+    ], { inputs: this.inputs, spacing: 24 });
+    footerHint(this, 'ESC CONTINUAR');
+    this.closing = false;
+  }
+
+  _resume() {
+    if (this.closing) return;
+    this.closing = true;
+    this.scene.resume(SCENES.GAME);
+    this.scene.stop();
+  }
+
+  _restart() {
+    if (this.closing) return;
+    this.closing = true;
+    this.scene.stop(SCENES.HUD);
+    this.scene.stop(SCENES.GAME);
+    this.scene.start(SCENES.GAME, { mode: this.modeId });
+  }
+
+  _toMenu() {
+    if (this.closing) return;
+    this.closing = true;
+    MusicManager.duck(false);
+    this.scene.stop(SCENES.HUD);
+    this.scene.stop(SCENES.GAME);
+    this.scene.start(SCENES.MENU);
+  }
+
+  update(time, delta) {
+    this.inputs.update();
+    if (this.closing) return;
+    if (this.inputs.justPressed('pause')) { this._resume(); return; }
+    this.menu.update(delta / 1000);
+  }
+}
+
+return { PauseScene };
+})();
+
+// ---- src/scenes/GameOverScene.js ----
+__m['src/scenes/GameOverScene.js'] = (function () {
+// =============================================================
+// GameOverScene — estado GAME_OVER. Mostra resultado, recordes
+// e "NOVO RECORDE!". ENTER reinicia imediatamente.
+// =============================================================
+const { SCENES, GAME_STATE, GAME_WIDTH, GAME_HEIGHT, FONT, UI_COLORS } = __m['src/config/gameConfig.js'];
+const { MODES } = __m['src/config/modes.js'];
+const { InputManager } = __m['src/systems/InputManager.js'];
+const { SFXManager, MusicManager } = __m['src/systems/AudioManager.js'];
+const { StorageManager } = __m['src/systems/StorageManager.js'];
+const { MenuList } = __m['src/ui/MenuList.js'];
+const { pixelText, panel, prepareCamera } = __m['src/ui/UIFactory.js'];
+
+class GameOverScene extends Phaser.Scene {
+  constructor() { super(SCENES.GAME_OVER); }
+
+  init(data) { this.r = data || {}; }
+
+  create() {
+    this.registry.set('state', GAME_STATE.GAME_OVER);
+    prepareCamera(this, 250);
+    const r = this.r;
+    const cx = GAME_WIDTH / 2;
+    this.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x14121f);
+    panel(this, cx, 176, 340, 300);
+
+    const title = pixelText(this, cx, 44, 'GAME OVER', { size: FONT.LARGE, color: UI_COLORS.DANGER });
+    title.setScale(1.6).setAlpha(0);
+    this.tweens.add({ targets: title, scale: 1, alpha: 1, duration: 380, ease: 'Back.out' });
+    const mode = MODES[r.mode] || MODES.endless;
+    pixelText(this, cx, 70, `${mode.name}${r.reason ? '  -  ' + r.reason : ''}`, { color: UI_COLORS.TEXT_DIM, stroke: false });
+
+    const rows = [
+      ['PONTUAÇÃO', r.score ?? 0],
+      ['DISTÂNCIA', (r.distance ?? 0) + ' m'],
+      ['MELHOR PONTUAÇÃO', r.bestScore ?? 0],
+      ['MELHOR DISTÂNCIA', (r.bestDistance ?? 0) + ' m'],
+      ['ENGRENAGENS', `${r.gears ?? 0}  (TOTAL ${StorageManager.getWallet().gears})`],
+      ['MAIOR COMBO', r.bestStreak ?? 0]
+    ];
+    if (r.timeBonus) rows.push(['BÔNUS DE TEMPO', '+' + r.timeBonus]);
+    rows.forEach(([k, v], i) => {
+      const y = 96 + i * 18;
+      pixelText(this, cx - 150, y, k, { origin: 0, align: 'left', color: i < 2 ? UI_COLORS.TEXT : UI_COLORS.TEXT_DIM, stroke: false });
+      const vt = pixelText(this, cx + 150, y, String(v), { origin: 0, color: i < 2 ? UI_COLORS.ACCENT : UI_COLORS.TEXT, stroke: false });
+      vt.setOrigin(1, 0);
+    });
+
+    // NOVO RECORDE!
+    if (r.newScoreRecord || r.newDistanceRecord) {
+      const label = r.newScoreRecord ? 'NOVO RECORDE!' : 'NOVO RECORDE DE DISTÂNCIA!';
+      const rec = pixelText(this, cx, 232, label, { size: FONT.MEDIUM, color: UI_COLORS.ACCENT });
+      this.tweens.add({ targets: rec, scale: 1.12, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.time.addEvent({ delay: 160, loop: true, callback: () => rec.setColor(rec.style.color === UI_COLORS.ACCENT ? '#ffffff' : UI_COLORS.ACCENT) });
+      if (StorageManager.getSettings().particles) {
+        const conf = this.add.particles(0, 0, 'spark', {
+          x: { min: cx - 160, max: cx + 160 }, y: 20, lifespan: 1600, speedY: { min: 40, max: 110 },
+          speedX: { min: -30, max: 30 }, scale: { start: 1.4, end: 0.4 },
+          tint: [0xf7c548, 0x6ee7a0, 0x6cc7ff, 0xff5a8a], frequency: 70, maxAliveParticles: 40
+        });
+        this.time.delayedCall(2600, () => conf.stop());
+      }
+      this.time.delayedCall(300, () => SFXManager.play('record'));
+    }
+
+    this.inputs = new InputManager(this);
+    this.menu = new MenuList(this, cx, 270, [
+      { label: 'JOGAR NOVAMENTE', onSelect: () => this._go(SCENES.GAME, { mode: r.mode || 'endless' }) },
+      { label: 'MENU PRINCIPAL', onSelect: () => this._go(SCENES.MENU) }
+    ], { inputs: this.inputs, spacing: 22 });
+    this.leaving = false;
+    MusicManager.play('menu');
+  }
+
+  _go(key, data) {
+    if (this.leaving) return;
+    this.leaving = true;
+    this.scene.start(key, data);
+  }
+
+  update(time, delta) {
+    this.inputs.update();
+    if (!this.leaving) this.menu.update(delta / 1000);
+  }
+}
+
+return { GameOverScene };
+})();
+
+// ---- src/main.js ----
+__m['src/main.js'] = (function () {
+// =============================================================
+// main.js — ponto de entrada. Configura o Phaser 3 e registra
+// as cenas. O Phaser é carregado como global (index.html).
+// =============================================================
+const { GAME_WIDTH, GAME_HEIGHT, UI_COLORS } = __m['src/config/gameConfig.js'];
+const { BootScene } = __m['src/scenes/BootScene.js'];
+const { MenuScene } = __m['src/scenes/MenuScene.js'];
+const { ModeSelectScene } = __m['src/scenes/ModeSelectScene.js'];
+const { HowToPlayScene } = __m['src/scenes/HowToPlayScene.js'];
+const { SettingsScene } = __m['src/scenes/SettingsScene.js'];
+const { CreditsScene } = __m['src/scenes/CreditsScene.js'];
+const { GameScene } = __m['src/scenes/GameScene.js'];
+const { HUDScene } = __m['src/scenes/HUDScene.js'];
+const { PauseScene } = __m['src/scenes/PauseScene.js'];
+const { GameOverScene } = __m['src/scenes/GameOverScene.js'];
+const { AudioManager } = __m['src/systems/AudioManager.js'];
+
+function showFatal(msg) {
+  const el = document.getElementById('boot-error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+async function waitForFont(timeoutMs = 1500) {
+  if (!document.fonts || !document.fonts.load) return;
+  try {
+    await Promise.race([
+      document.fonts.load('8px "Press Start 2P"'),
+      new Promise((r) => setTimeout(r, timeoutMs))
+    ]);
+  } catch (e) { /* segue com fonte de fallback */ }
+}
+
+async function start() {
+  if (typeof window.Phaser === 'undefined') {
+    showFatal('Não foi possível carregar o Phaser 3. Verifique lib/phaser.min.js ou a conexão (CDN).');
+    return;
+  }
+  await waitForFont();
+
+  // Desbloqueia o áudio no primeiro gesto do usuário
+  const unlock = () => AudioManager.unlock();
+  ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, unlock, { passive: true }));
+
+  const config = {
+    type: Phaser.AUTO,
+    parent: 'game-container',
+    width: GAME_WIDTH,
+    height: GAME_HEIGHT,
+    backgroundColor: UI_COLORS.BG,
+    pixelArt: true,          // sem suavização: sprites nítidos
+    roundPixels: true,
+    antialias: false,
+    scale: {
+      mode: Phaser.Scale.FIT,               // mantém proporção, sem deformar
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+      width: GAME_WIDTH,
+      height: GAME_HEIGHT
+    },
+    input: {
+      gamepad: true,
+      activePointers: 3
+    },
+    fps: { target: 60, smoothStep: true },
+    // A ordem importa: cenas posteriores são desenhadas por cima
+    scene: [
+      BootScene, MenuScene, ModeSelectScene, HowToPlayScene, SettingsScene, CreditsScene,
+      GameScene, HUDScene, PauseScene, GameOverScene
+    ]
+  };
+
+  const game = new Phaser.Game(config);
+  window.__ASFALTO_RUSH__ = game; // útil para depuração no console
+}
+
+start();
+
+return {  };
+})();

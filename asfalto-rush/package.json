@@ -1,0 +1,14 @@
+{
+  "name": "asfalto-rush",
+  "version": "1.0.0",
+  "description": "Jogo arcade 2D de caminhão em rodovia infinita (Phaser 3, pixel art original).",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "npx http-server . -p 8080 -c-1 -o",
+    "build": "node tools/build-standalone.mjs",
+    "test": "node tests/pattern.test.mjs && node tests/smoke.test.mjs && node tests/fairness.test.mjs && node tests/bundle.test.mjs",
+    "art-preview": "node tests/render_art.mjs"
+  },
+  "license": "MIT"
+}
