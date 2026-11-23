@@ -89,6 +89,9 @@ export class GameScene extends Phaser.Scene {
 
     // ---------- estado ----------
     this.gameOverPending = false;
+    this.gameOverFinished = false;
+    this.gameOverFinishTimer = 0;
+    this.gameOverReason = '';
     this.camKick = 0;
     this.comboFxTimer = 0;
     this.gearPitch = 0;
@@ -119,6 +122,13 @@ export class GameScene extends Phaser.Scene {
   update(time, delta) {
     const dt = Math.min(delta / 1000, 1 / 20);   // evita saltos após troca de aba
     this.inputs.update();
+
+    if (this.gameOverPending) {
+      const gameOverDt = Math.min(delta / 1000, 1.5);
+      this.gameOverFinishTimer = Math.max(0, (this.gameOverFinishTimer ?? 1.5) - gameOverDt);
+      if (this.gameOverFinishTimer <= 0) this._finish(this.gameOverReason);
+      return;
+    }
 
     if (!this.gameOverPending) {
       if (this.inputs.justPressed('pause')) { this._pause(); return; }
@@ -253,8 +263,11 @@ export class GameScene extends Phaser.Scene {
   // GAME OVER / PAUSA
   // ===========================================================
   _triggerGameOver(reason, { wreck = true, fatal = false } = {}) {
-    if (this.gameOverPending) return;
+    if (this.gameOverPending || this.gameOverFinished) return;
     this.gameOverPending = true;
+    this.gameOverFinished = false;
+    this.gameOverFinishTimer = 1.5;
+    this.gameOverReason = reason || 'FIM DE PARTIDA';
     this.obstacles.enabled = false;
     const t = this.truck;
 
@@ -276,9 +289,30 @@ export class GameScene extends Phaser.Scene {
   }
 
   _finish(reason) {
-    const bonus = this.rules.finalBonus();
-    if (bonus > 0) this.score.addTimeBonus(bonus);
-    const results = this.score.finalize(reason);
+    if (this.gameOverFinished) return;
+    this.gameOverFinished = true;
+    this.gameOverPending = true;
+    let results = null;
+    try {
+      const bonus = this.rules && this.rules.finalBonus ? this.rules.finalBonus() : 0;
+      if (bonus > 0 && this.score) this.score.addTimeBonus(bonus);
+      results = this.score && this.score.finalize ? this.score.finalize(reason || this.gameOverReason) : null;
+    } catch (e) {
+      results = null;
+    }
+    const fallback = {
+      mode: this.modeId || 'endless',
+      reason: reason || this.gameOverReason || 'FIM DE PARTIDA',
+      score: this.score ? (this.score.displayScore ?? 0) : 0,
+      distance: this.score ? (this.score.distance ?? 0) : 0,
+      gears: this.score ? (this.score.gears ?? 0) : 0,
+      bestStreak: this.score ? (this.score.bestStreak ?? 0) : 0,
+      bestScore: 0,
+      bestDistance: 0,
+      newScoreRecord: false,
+      newDistanceRecord: false
+    };
+    results = results && typeof results === 'object' ? { ...fallback, ...results } : fallback;
     this.registry.set('state', GAME_STATE.GAME_OVER);
     this.scene.stop(SCENES.HUD);
     this.scene.start(SCENES.GAME_OVER, results);

@@ -1,6 +1,6 @@
 {
   "name": "asfalto-rush",
-  "version": "1.0.0",
+  "version": "1.1",
   "description": "Jogo arcade 2D de caminhão em rodovia infinita (Phaser 3, pixel art original).",
   "type": "module",
   "private": true,

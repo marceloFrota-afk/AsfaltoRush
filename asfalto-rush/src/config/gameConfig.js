@@ -5,7 +5,7 @@
 // =============================================================
 
 export const GAME_TITLE = 'ASFALTO RUSH';
-export const GAME_VERSION = '1.0.0';
+export const GAME_VERSION = '1.1';
 
 // Resolução lógica (pixel art). O Phaser escala com FIT mantendo proporção.
 export const GAME_WIDTH = 640;
@@ -83,7 +83,9 @@ export const UI_COLORS = {
 export const STORAGE_KEYS = {
   SETTINGS: 'asfaltoRush.settings.v1',
   RECORDS: 'asfaltoRush.records.v1',
-  WALLET: 'asfaltoRush.wallet.v1'
+  WALLET: 'asfaltoRush.wallet.v1',
+  RANKING: 'asfaltoRush.ranking.endless.v1',
+  PLAYER_NAME: 'asfaltoRush.playerName.v1'
 };
 
 // Estados globais do jogo (registrados no registry do Phaser)
@@ -128,10 +130,10 @@ export const DEFAULT_KEY_BINDINGS = {
 // 6=LT/L2 7=RT/R2 9=Start/Options 12..15 = D-pad
 export const DEFAULT_PAD_BINDINGS = {
   jump: [0],
-  dash: [5, 2, 7],
-  pause: [9],
+  dash: [5, 7, 2, 3],
+  pause: [8, 9],
   confirm: [0, 9],
-  back: [1],
+  back: [1, 8],
   up: [12],
   down: [13],
   left: [14],

@@ -35,6 +35,8 @@ class StorageManagerClass {
     this._settings = null;
     this._records = null;
     this._wallet = null;
+    this._ranking = null;
+    this._playerName = null;
   }
 
   _detect() {
@@ -112,6 +114,44 @@ class StorageManagerClass {
   resetRecords() {
     this._records = this._emptyRecords();
     this._write(STORAGE_KEYS.RECORDS, this._records);
+  }
+
+  // ---------- Ranking infinito ----------
+  _sanitizeName(name) {
+    let clean = String(name ?? '').replace(/[\r\n\t]/g, ' ').trim();
+    clean = clean.replace(/[^\p{L}\p{N} _.-]/gu, '').trim();
+    if (!clean) clean = 'PILOTO';
+    return clean.slice(0, 12);
+  }
+
+  getRanking() {
+    if (!this._ranking) {
+      const raw = this._read(STORAGE_KEYS.RANKING, []);
+      this._ranking = Array.isArray(raw) ? raw : [];
+    }
+    return this._ranking.filter((e) => e && typeof e === 'object').map((e) => ({
+      name: this._sanitizeName(e.name),
+      score: Math.max(0, Math.floor(Number(e.score) || 0)),
+      distance: Math.max(0, Math.floor(Number(e.distance) || 0))
+    })).sort((a, b) => b.score - a.score || b.distance - a.distance).slice(0, 10);
+  }
+
+  getPlayerName() {
+    if (this._playerName === null) {
+      this._playerName = this._sanitizeName(this._read(STORAGE_KEYS.PLAYER_NAME, 'PILOTO'));
+    }
+    return this._playerName;
+  }
+
+  submitRanking(name, score, distance) {
+    const cleanName = this._sanitizeName(name);
+    this._playerName = cleanName;
+    this._write(STORAGE_KEYS.PLAYER_NAME, cleanName);
+    const entry = { name: cleanName, score: Math.max(0, Math.floor(Number(score) || 0)), distance: Math.max(0, Math.floor(Number(distance) || 0)) };
+    const ranking = [...this.getRanking(), entry].sort((a, b) => b.score - a.score || b.distance - a.distance).slice(0, 10);
+    this._ranking = ranking;
+    this._write(STORAGE_KEYS.RANKING, ranking);
+    return ranking;
   }
 
   // ---------- Carteira (expansão futura: loja/cosméticos) ----------

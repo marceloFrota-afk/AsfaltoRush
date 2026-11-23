@@ -62,14 +62,22 @@ class GamepadProvider {
   read(state) {
     const pad = this._pad();
     if (!pad || !pad.connected) return;
-    const btn = (i) => pad.buttons[i] && pad.buttons[i].pressed;
+    const buttons = Array.isArray(pad.buttons) ? pad.buttons : [];
+    const btn = (i) => buttons[i] && buttons[i].pressed;
     ACTIONS.forEach((a) => {
       const list = this.b[a];
       if (list && list.some(btn)) state[a] = true;
     });
     const dz = this.b.stickDeadzone;
-    const sx = pad.leftStick ? pad.leftStick.x : 0;
-    const sy = pad.leftStick ? pad.leftStick.y : 0;
+    let sx = 0;
+    let sy = 0;
+    if (Array.isArray(pad.axes) && pad.axes.length >= 2) {
+      sx = Number(pad.axes[0]) || 0;
+      sy = Number(pad.axes[1]) || 0;
+    } else if (pad.leftStick) {
+      sx = Number(pad.leftStick.x) || 0;
+      sy = Number(pad.leftStick.y) || 0;
+    }
     if (sx < -dz) state.left = true;
     if (sx > dz) state.right = true;
     if (sy < -dz) state.up = true;
@@ -77,6 +85,16 @@ class GamepadProvider {
     // eixo analógico para movimento proporcional
     if (Math.abs(sx) > dz) state.axisX = sx;
     if (Math.abs(sy) > dz) state.axisY = sy;
+
+    // Compatibilidade Xbox/genérica: face, ombros e start independente do mapping customizado.
+    if (btn(0)) { state.jump = true; state.confirm = true; }
+    if (btn(1) || btn(8)) state.back = true;
+    if (btn(8) || btn(9)) state.pause = true;
+    if (btn(2) || btn(3) || btn(4) || btn(5) || btn(6) || btn(7)) state.dash = true;
+    if (btn(12)) state.up = true;
+    if (btn(13)) state.down = true;
+    if (btn(14)) state.left = true;
+    if (btn(15)) state.right = true;
   }
 
   reset() {}

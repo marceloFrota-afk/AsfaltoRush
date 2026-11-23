@@ -19,6 +19,8 @@ export class GameOverScene extends Phaser.Scene {
     this.registry.set('state', GAME_STATE.GAME_OVER);
     prepareCamera(this, 250);
     const r = this.r;
+    this.rankingSubmitted = false;
+    this.ranking = [];
     const cx = GAME_WIDTH / 2;
     this.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x14121f);
     panel(this, cx, 176, 340, 300);
@@ -62,6 +64,8 @@ export class GameOverScene extends Phaser.Scene {
       this.time.delayedCall(300, () => SFXManager.play('record'));
     }
 
+    this._submitEndlessRanking(r);
+
     this.inputs = new InputManager(this);
     this.menu = new MenuList(this, cx, 270, [
       { label: 'JOGAR NOVAMENTE', onSelect: () => this._go(SCENES.GAME, { mode: r.mode || 'endless' }) },
@@ -69,6 +73,31 @@ export class GameOverScene extends Phaser.Scene {
     ], { inputs: this.inputs, spacing: 22 });
     this.leaving = false;
     MusicManager.play('menu');
+  }
+
+  _submitEndlessRanking(r) {
+    if (this.rankingSubmitted) return;
+    this.rankingSubmitted = true;
+    if (!r || r.mode !== 'endless') return;
+
+    let defaultName = 'PILOTO';
+    try { defaultName = StorageManager.getPlayerName(); } catch (e) {}
+    let name = defaultName;
+    try {
+      if (typeof window !== 'undefined' && window && typeof window.prompt === 'function') {
+        const answer = window.prompt('Nome do piloto (máx. 12 caracteres):', defaultName);
+        if (answer !== null) name = answer;
+      }
+    } catch (e) {}
+
+    this.ranking = StorageManager.submitRanking(name, r.score ?? 0, r.distance ?? 0).slice(0, 3);
+    const cx = GAME_WIDTH / 2;
+    pixelText(this, cx, 204, 'RANKING INFINITO', { size: FONT.SMALL, color: UI_COLORS.ACCENT, stroke: false });
+    this.ranking.forEach((entry, i) => {
+      pixelText(this, cx - 150, 216 + i * 12, String(i + 1) + '. ' + entry.name, { origin: 0, align: 'left', color: i === 0 ? UI_COLORS.ACCENT : UI_COLORS.TEXT, stroke: false });
+      const score = pixelText(this, cx + 150, 216 + i * 12, String(entry.score), { origin: 0, color: i === 0 ? UI_COLORS.ACCENT : UI_COLORS.TEXT, stroke: false });
+      score.setOrigin(1, 0);
+    });
   }
 
   _go(key, data) {

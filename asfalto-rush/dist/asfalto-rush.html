@@ -64,7 +64,7 @@ __m['src/config/gameConfig.js'] = (function () {
 // =============================================================
 
 const GAME_TITLE = 'ASFALTO RUSH';
-const GAME_VERSION = '1.0.0';
+const GAME_VERSION = '1.1';
 
 // Resolução lógica (pixel art). O Phaser escala com FIT mantendo proporção.
 const GAME_WIDTH = 640;
@@ -142,7 +142,9 @@ const UI_COLORS = {
 const STORAGE_KEYS = {
   SETTINGS: 'asfaltoRush.settings.v1',
   RECORDS: 'asfaltoRush.records.v1',
-  WALLET: 'asfaltoRush.wallet.v1'
+  WALLET: 'asfaltoRush.wallet.v1',
+  RANKING: 'asfaltoRush.ranking.endless.v1',
+  PLAYER_NAME: 'asfaltoRush.playerName.v1'
 };
 
 // Estados globais do jogo (registrados no registry do Phaser)
@@ -187,10 +189,10 @@ const DEFAULT_KEY_BINDINGS = {
 // 6=LT/L2 7=RT/R2 9=Start/Options 12..15 = D-pad
 const DEFAULT_PAD_BINDINGS = {
   jump: [0],
-  dash: [5, 2, 7],
-  pause: [9],
+  dash: [5, 7, 2, 3],
+  pause: [8, 9],
   confirm: [0, 9],
-  back: [1],
+  back: [1, 8],
   up: [12],
   down: [13],
   left: [14],
@@ -1113,6 +1115,8 @@ class StorageManagerClass {
     this._settings = null;
     this._records = null;
     this._wallet = null;
+    this._ranking = null;
+    this._playerName = null;
   }
 
   _detect() {
@@ -1190,6 +1194,44 @@ class StorageManagerClass {
   resetRecords() {
     this._records = this._emptyRecords();
     this._write(STORAGE_KEYS.RECORDS, this._records);
+  }
+
+  // ---------- Ranking infinito ----------
+  _sanitizeName(name) {
+    let clean = String(name ?? '').replace(/[\r\n\t]/g, ' ').trim();
+    clean = clean.replace(/[^\p{L}\p{N} _.-]/gu, '').trim();
+    if (!clean) clean = 'PILOTO';
+    return clean.slice(0, 12);
+  }
+
+  getRanking() {
+    if (!this._ranking) {
+      const raw = this._read(STORAGE_KEYS.RANKING, []);
+      this._ranking = Array.isArray(raw) ? raw : [];
+    }
+    return this._ranking.filter((e) => e && typeof e === 'object').map((e) => ({
+      name: this._sanitizeName(e.name),
+      score: Math.max(0, Math.floor(Number(e.score) || 0)),
+      distance: Math.max(0, Math.floor(Number(e.distance) || 0))
+    })).sort((a, b) => b.score - a.score || b.distance - a.distance).slice(0, 10);
+  }
+
+  getPlayerName() {
+    if (this._playerName === null) {
+      this._playerName = this._sanitizeName(this._read(STORAGE_KEYS.PLAYER_NAME, 'PILOTO'));
+    }
+    return this._playerName;
+  }
+
+  submitRanking(name, score, distance) {
+    const cleanName = this._sanitizeName(name);
+    this._playerName = cleanName;
+    this._write(STORAGE_KEYS.PLAYER_NAME, cleanName);
+    const entry = { name: cleanName, score: Math.max(0, Math.floor(Number(score) || 0)), distance: Math.max(0, Math.floor(Number(distance) || 0)) };
+    const ranking = [...this.getRanking(), entry].sort((a, b) => b.score - a.score || b.distance - a.distance).slice(0, 10);
+    this._ranking = ranking;
+    this._write(STORAGE_KEYS.RANKING, ranking);
+    return ranking;
   }
 
   // ---------- Carteira (expansão futura: loja/cosméticos) ----------
@@ -2096,14 +2138,22 @@ class GamepadProvider {
   read(state) {
     const pad = this._pad();
     if (!pad || !pad.connected) return;
-    const btn = (i) => pad.buttons[i] && pad.buttons[i].pressed;
+    const buttons = Array.isArray(pad.buttons) ? pad.buttons : [];
+    const btn = (i) => buttons[i] && buttons[i].pressed;
     ACTIONS.forEach((a) => {
       const list = this.b[a];
       if (list && list.some(btn)) state[a] = true;
     });
     const dz = this.b.stickDeadzone;
-    const sx = pad.leftStick ? pad.leftStick.x : 0;
-    const sy = pad.leftStick ? pad.leftStick.y : 0;
+    let sx = 0;
+    let sy = 0;
+    if (Array.isArray(pad.axes) && pad.axes.length >= 2) {
+      sx = Number(pad.axes[0]) || 0;
+      sy = Number(pad.axes[1]) || 0;
+    } else if (pad.leftStick) {
+      sx = Number(pad.leftStick.x) || 0;
+      sy = Number(pad.leftStick.y) || 0;
+    }
     if (sx < -dz) state.left = true;
     if (sx > dz) state.right = true;
     if (sy < -dz) state.up = true;
@@ -2111,6 +2161,16 @@ class GamepadProvider {
     // eixo analógico para movimento proporcional
     if (Math.abs(sx) > dz) state.axisX = sx;
     if (Math.abs(sy) > dz) state.axisY = sy;
+
+    // Compatibilidade Xbox/genérica: face, ombros e start independente do mapping customizado.
+    if (btn(0)) { state.jump = true; state.confirm = true; }
+    if (btn(1) || btn(8)) state.back = true;
+    if (btn(8) || btn(9)) state.pause = true;
+    if (btn(2) || btn(3) || btn(4) || btn(5) || btn(6) || btn(7)) state.dash = true;
+    if (btn(12)) state.up = true;
+    if (btn(13)) state.down = true;
+    if (btn(14)) state.left = true;
+    if (btn(15)) state.right = true;
   }
 
   reset() {}
@@ -4374,6 +4434,9 @@ class GameScene extends Phaser.Scene {
 
     // ---------- estado ----------
     this.gameOverPending = false;
+    this.gameOverFinished = false;
+    this.gameOverFinishTimer = 0;
+    this.gameOverReason = '';
     this.camKick = 0;
     this.comboFxTimer = 0;
     this.gearPitch = 0;
@@ -4404,6 +4467,13 @@ class GameScene extends Phaser.Scene {
   update(time, delta) {
     const dt = Math.min(delta / 1000, 1 / 20);   // evita saltos após troca de aba
     this.inputs.update();
+
+    if (this.gameOverPending) {
+      const gameOverDt = Math.min(delta / 1000, 1.5);
+      this.gameOverFinishTimer = Math.max(0, (this.gameOverFinishTimer ?? 1.5) - gameOverDt);
+      if (this.gameOverFinishTimer <= 0) this._finish(this.gameOverReason);
+      return;
+    }
 
     if (!this.gameOverPending) {
       if (this.inputs.justPressed('pause')) { this._pause(); return; }
@@ -4538,8 +4608,11 @@ class GameScene extends Phaser.Scene {
   // GAME OVER / PAUSA
   // ===========================================================
   _triggerGameOver(reason, { wreck = true, fatal = false } = {}) {
-    if (this.gameOverPending) return;
+    if (this.gameOverPending || this.gameOverFinished) return;
     this.gameOverPending = true;
+    this.gameOverFinished = false;
+    this.gameOverFinishTimer = 1.5;
+    this.gameOverReason = reason || 'FIM DE PARTIDA';
     this.obstacles.enabled = false;
     const t = this.truck;
 
@@ -4561,9 +4634,30 @@ class GameScene extends Phaser.Scene {
   }
 
   _finish(reason) {
-    const bonus = this.rules.finalBonus();
-    if (bonus > 0) this.score.addTimeBonus(bonus);
-    const results = this.score.finalize(reason);
+    if (this.gameOverFinished) return;
+    this.gameOverFinished = true;
+    this.gameOverPending = true;
+    let results = null;
+    try {
+      const bonus = this.rules && this.rules.finalBonus ? this.rules.finalBonus() : 0;
+      if (bonus > 0 && this.score) this.score.addTimeBonus(bonus);
+      results = this.score && this.score.finalize ? this.score.finalize(reason || this.gameOverReason) : null;
+    } catch (e) {
+      results = null;
+    }
+    const fallback = {
+      mode: this.modeId || 'endless',
+      reason: reason || this.gameOverReason || 'FIM DE PARTIDA',
+      score: this.score ? (this.score.displayScore ?? 0) : 0,
+      distance: this.score ? (this.score.distance ?? 0) : 0,
+      gears: this.score ? (this.score.gears ?? 0) : 0,
+      bestStreak: this.score ? (this.score.bestStreak ?? 0) : 0,
+      bestScore: 0,
+      bestDistance: 0,
+      newScoreRecord: false,
+      newDistanceRecord: false
+    };
+    results = results && typeof results === 'object' ? { ...fallback, ...results } : fallback;
     this.registry.set('state', GAME_STATE.GAME_OVER);
     this.scene.stop(SCENES.HUD);
     this.scene.start(SCENES.GAME_OVER, results);
@@ -4957,6 +5051,8 @@ class GameOverScene extends Phaser.Scene {
     this.registry.set('state', GAME_STATE.GAME_OVER);
     prepareCamera(this, 250);
     const r = this.r;
+    this.rankingSubmitted = false;
+    this.ranking = [];
     const cx = GAME_WIDTH / 2;
     this.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x14121f);
     panel(this, cx, 176, 340, 300);
@@ -5000,6 +5096,8 @@ class GameOverScene extends Phaser.Scene {
       this.time.delayedCall(300, () => SFXManager.play('record'));
     }
 
+    this._submitEndlessRanking(r);
+
     this.inputs = new InputManager(this);
     this.menu = new MenuList(this, cx, 270, [
       { label: 'JOGAR NOVAMENTE', onSelect: () => this._go(SCENES.GAME, { mode: r.mode || 'endless' }) },
@@ -5007,6 +5105,31 @@ class GameOverScene extends Phaser.Scene {
     ], { inputs: this.inputs, spacing: 22 });
     this.leaving = false;
     MusicManager.play('menu');
+  }
+
+  _submitEndlessRanking(r) {
+    if (this.rankingSubmitted) return;
+    this.rankingSubmitted = true;
+    if (!r || r.mode !== 'endless') return;
+
+    let defaultName = 'PILOTO';
+    try { defaultName = StorageManager.getPlayerName(); } catch (e) {}
+    let name = defaultName;
+    try {
+      if (typeof window !== 'undefined' && window && typeof window.prompt === 'function') {
+        const answer = window.prompt('Nome do piloto (máx. 12 caracteres):', defaultName);
+        if (answer !== null) name = answer;
+      }
+    } catch (e) {}
+
+    this.ranking = StorageManager.submitRanking(name, r.score ?? 0, r.distance ?? 0).slice(0, 3);
+    const cx = GAME_WIDTH / 2;
+    pixelText(this, cx, 204, 'RANKING INFINITO', { size: FONT.SMALL, color: UI_COLORS.ACCENT, stroke: false });
+    this.ranking.forEach((entry, i) => {
+      pixelText(this, cx - 150, 216 + i * 12, String(i + 1) + '. ' + entry.name, { origin: 0, align: 'left', color: i === 0 ? UI_COLORS.ACCENT : UI_COLORS.TEXT, stroke: false });
+      const score = pixelText(this, cx + 150, 216 + i * 12, String(entry.score), { origin: 0, color: i === 0 ? UI_COLORS.ACCENT : UI_COLORS.TEXT, stroke: false });
+      score.setOrigin(1, 0);
+    });
   }
 
   _go(key, data) {
