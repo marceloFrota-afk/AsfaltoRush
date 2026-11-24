@@ -59,13 +59,18 @@ class GamepadProvider {
 
   _pad() {
     const gp = this.scene.input.gamepad;
-    if (!gp || !gp.total) return null;
-    return gp.getPad(0) || null;
+    if (gp && typeof gp.getPad === 'function') {
+      const pad = gp.getPad(0);
+      if (pad && pad.connected !== false) return pad;
+    }
+
+    const pads = globalThis.navigator?.getGamepads?.();
+    return pads ? Array.from(pads).find((pad) => pad && pad.connected !== false) || null : null;
   }
 
   read(state) {
     const pad = this._pad();
-    if (!pad || !pad.connected) return;
+    if (!pad) return;
     const buttons = Array.isArray(pad.buttons) ? pad.buttons : [];
     const usesDragonRiseLayout = /(?:Vendor:\s*0079\s+Product:\s*0006|DragonRise Inc\. Generic USB Joystick)/i
       .test(pad.id || '');
@@ -76,15 +81,16 @@ class GamepadProvider {
       if (list && list.some(btn)) state[a] = true;
     });
     const dz = bindings.stickDeadzone;
-    let sx = 0;
-    let sy = 0;
-    if (Array.isArray(pad.axes) && pad.axes.length >= 2) {
-      sx = Number(pad.axes[0]) || 0;
-      sy = Number(pad.axes[1]) || 0;
-    } else if (pad.leftStick) {
-      sx = Number(pad.leftStick.x) || 0;
-      sy = Number(pad.leftStick.y) || 0;
-    }
+    const readAxis = (axis) => {
+      const value = typeof axis === 'number'
+        ? axis
+        : axis && typeof axis.getValue === 'function'
+          ? axis.getValue()
+          : axis?.value;
+      return Number.isFinite(value) ? value : 0;
+    };
+    const sx = Number.isFinite(pad.leftStick?.x) ? pad.leftStick.x : readAxis(pad.axes?.[0]);
+    const sy = Number.isFinite(pad.leftStick?.y) ? pad.leftStick.y : readAxis(pad.axes?.[1]);
     if (sx < -dz) state.left = true;
     if (sx > dz) state.right = true;
     if (sy < -dz) state.up = true;

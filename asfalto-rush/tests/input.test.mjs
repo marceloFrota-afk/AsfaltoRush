@@ -53,7 +53,7 @@ function makeInputs(pad) {
   for (const index of [4, 5, 6, 7, 10, 11]) {
     pad.buttons[index].pressed = true;
     inputs.update();
-    assert.equal(inputs.isDown('dash'), true);
+    assert.equal(inputs.isDown('dash'), [5, 7].includes(index));
     pad.buttons[index].pressed = false;
   }
   pad.axes = Array(10).fill(0);
@@ -70,13 +70,28 @@ function makeInputs(pad) {
 
   pad.buttons[8].pressed = true;
   inputs.update();
-  assert.equal(inputs.isDown('back'), true);
+  assert.equal(inputs.isDown('back'), false);
   assert.equal(inputs.isDown('pause'), false);
   pad.buttons[8].pressed = false;
+  pad.buttons[1].pressed = true;
+  inputs.update();
+  assert.equal(inputs.isDown('back'), true);
+  pad.buttons[1].pressed = false;
   pad.buttons[9].pressed = true;
   inputs.update();
   assert.equal(inputs.isDown('pause'), true);
   assert.equal(inputs.isDown('confirm'), false);
+  inputs.destroy();
+}
+
+{
+  const pad = makePad('USB Joystick (Vendor: 0079 Product: 0006)');
+  delete pad.connected;
+  pad.axes = [{ value: -1 }, { getValue: () => 1 }];
+  const inputs = makeInputs(pad);
+  inputs.update();
+  assert.equal(inputs.isDown('left'), true);
+  assert.equal(inputs.isDown('down'), true);
   inputs.destroy();
 }
 

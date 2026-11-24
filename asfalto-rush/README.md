@@ -44,7 +44,7 @@ O `dist/asfalto-rush.html` já é offline. Para executar o projeto modular offli
 | Confirmar / reiniciar | ENTER | A / ✕ |
 
 Em dispositivos com toque, aparecem botões virtuais (◀ ▶ PULO DASH II).
-No controle DragonRise USB `0079:0006`, cruz confirma, triângulo pula, círculo/Select volta, Start pausa; quadrado, ombros, gatilhos e cliques dos analógicos fazem dash. Direcional e analógico esquerdo movem o caminhão.
+No controle DragonRise USB `0079:0006`, cruz confirma, triângulo pula, círculo volta e Start pausa; quadrado, R1 e R2 fazem dash. Direcional e analógico esquerdo movem o caminhão.
 
 ---
 
