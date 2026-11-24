@@ -147,11 +147,13 @@ const DEFAULT_PAD_BINDINGS = {
 };
 
 // Ordem bruta do DragonRise 0079:0006: 0=Y/Triângulo, 1=B/Círculo,
-// 2=A/Cruz, 3=X/Quadrado. A confirmação fica apenas na cruz.
+// 2=A/Cruz, 3=X/Quadrado, 8=Select, 9=Start, 10/11=cliques dos analógicos.
 const DRAGONRISE_PAD_BINDINGS = {
   ...DEFAULT_PAD_BINDINGS,
-  dash: [5, 7, 3],
-  confirm: [2]
+  dash: [3, 4, 5, 6, 7, 10, 11],
+  pause: [9],
+  confirm: [2],
+  back: [1, 8]
 };
 
 return { GAME_TITLE, GAME_VERSION, GAME_WIDTH, GAME_HEIGHT, ART_PX, ROAD, laneCenter, SPAWN_Y, DESPAWN_Y, PIXELS_PER_METER, DEPTH, FONT, UI_COLORS, STORAGE_KEYS, GAME_STATE, SCENES, DEFAULT_KEY_BINDINGS, DEFAULT_PAD_BINDINGS, DRAGONRISE_PAD_BINDINGS };

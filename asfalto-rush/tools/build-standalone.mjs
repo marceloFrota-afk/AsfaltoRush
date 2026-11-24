@@ -43,6 +43,8 @@ for (const file of order) {
 }
 
 const css = fs.readFileSync(path.join(root, 'css/style.css'), 'utf8');
+const phaser = fs.readFileSync(path.join(root, 'node_modules/phaser/dist/phaser.min.js'), 'utf8');
+const phaserLicense = fs.readFileSync(path.join(root, 'node_modules/phaser/LICENSE.md'), 'utf8');
 const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -55,32 +57,11 @@ const html = `<!DOCTYPE html>
 <body>
 <div id="game-container"></div>
 <div id="boot-error"></div>
-<script id="game-bundle" type="text/plain">${bundle.replace(/<\/script/gi, '<\\/script')}</script>
-<script>
-(function () {
-  function run() {
-    var s = document.createElement('script');
-    s.textContent = document.getElementById('game-bundle').textContent;
-    document.body.appendChild(s);
-  }
-  function cdn() {
-    var c = document.createElement('script');
-    c.src = 'https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js';
-    c.onload = run;
-    c.onerror = function () {
-      var e = document.getElementById('boot-error');
-      e.textContent = 'Falha ao carregar o Phaser 3 (coloque phaser.min.js em ../lib/ ou conecte-se à internet).';
-      e.style.display = 'block';
-    };
-    document.head.appendChild(c);
-  }
-  var local = document.createElement('script');
-  local.src = '../lib/phaser.min.js';
-  local.onload = function () { window.Phaser ? run() : cdn(); };
-  local.onerror = cdn;
-  document.head.appendChild(local);
-})();
-</script>
+<!-- Phaser 3.80.1 license:
+${phaserLicense}
+-->
+<script>${phaser.replace(/<\/script/gi, '<\\/script')}</script>
+<script>${bundle.replace(/<\/script/gi, '<\\/script')}</script>
 </body>
 </html>
 `;

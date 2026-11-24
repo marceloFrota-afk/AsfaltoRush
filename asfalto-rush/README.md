@@ -9,7 +9,7 @@ Toda a pixel art e todo o áudio são **originais**, gerados por código. Nenhum
 
 ### Opção A: arquivo único (duplo clique)
 Abra **`dist/asfalto-rush.html`** no navegador.
-Esse arquivo já traz o jogo empacotado e funciona via `file://`. O Phaser é carregado da CDN, então é preciso internet. Para jogar offline, siga o passo "Offline" abaixo.
+Esse arquivo inclui o jogo e o Phaser 3.80.1; funciona via `file://` sem servidor ou conexão com a internet.
 
 ### Opção B: projeto modular (para desenvolvimento)
 Como o projeto usa módulos ES, ele precisa de um servidor local (o navegador bloqueia módulos via `file://`):
@@ -21,16 +21,13 @@ npx http-server . -p 8080 -c-1    # ou: npm start
 ```
 
 ### Offline
-Baixe o `phaser.min.js` (versão **3.80.x**, licença MIT) e salve em **`lib/phaser.min.js`**.
-O `index.html` (e também o `dist/`) usa a cópia local primeiro e só recorre à CDN se ela não existir.
-
-> Observação: sem o arquivo local, o navegador registra um 404 de `lib/phaser.min.js` no console antes de carregar pela CDN. Isso é esperado e não afeta o jogo.
+O `dist/asfalto-rush.html` já é offline. Para executar o projeto modular offline, instale as dependências e salve o Phaser 3.80.x em **`lib/phaser.min.js`**; o `index.html` usa essa cópia local.
 
 ### Scripts
 | Comando | O que faz |
 |---|---|
 | `npm start` | servidor local em http://localhost:8080 |
-| `npm run build` | regenera `dist/asfalto-rush.html` a partir de `/src` |
+| `npm run build` | regenera `dist/asfalto-rush.html` a partir de `/src` e inclui Phaser |
 | `npm test` | testes de lógica, smoke test das cenas, teste de justiça e teste do bundle (Node) |
 | `npm run art-preview` | gera `tests/art_preview.png` com toda a pixel art |
 
@@ -47,7 +44,7 @@ O `index.html` (e também o `dist/`) usa a cópia local primeiro e só recorre �
 | Confirmar / reiniciar | ENTER | A / ✕ |
 
 Em dispositivos com toque, aparecem botões virtuais (◀ ▶ PULO DASH II).
-No controle DragonRise USB `0079:0006`, a cruz confirma, o triângulo pula e o quadrado aciona o dash.
+No controle DragonRise USB `0079:0006`, cruz confirma, triângulo pula, círculo/Select volta, Start pausa; quadrado, ombros, gatilhos e cliques dos analógicos fazem dash. Direcional e analógico esquerdo movem o caminhão.
 
 ---
 

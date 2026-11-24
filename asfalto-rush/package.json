@@ -10,5 +10,8 @@
     "test": "node tests/pattern.test.mjs && node tests/input.test.mjs && node tests/smoke.test.mjs && node tests/fairness.test.mjs && node tests/bundle.test.mjs",
     "art-preview": "node tests/render_art.mjs"
   },
+  "devDependencies": {
+    "phaser": "3.80.1"
+  },
   "license": "MIT"
 }
