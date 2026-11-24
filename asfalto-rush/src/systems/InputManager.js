@@ -8,7 +8,11 @@
 //   this.inputs = new InputManager(this);
 //   update() { this.inputs.update(); if (this.inputs.justPressed('jump')) ... }
 // =============================================================
-import { DEFAULT_KEY_BINDINGS, DEFAULT_PAD_BINDINGS } from '../config/gameConfig.js';
+import {
+  DEFAULT_KEY_BINDINGS,
+  DEFAULT_PAD_BINDINGS,
+  DRAGONRISE_PAD_BINDINGS
+} from '../config/gameConfig.js';
 import { StorageManager } from './StorageManager.js';
 
 export const ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'dash', 'pause', 'confirm', 'back'];
@@ -63,12 +67,15 @@ class GamepadProvider {
     const pad = this._pad();
     if (!pad || !pad.connected) return;
     const buttons = Array.isArray(pad.buttons) ? pad.buttons : [];
+    const usesDragonRiseLayout = /(?:Vendor:\s*0079\s+Product:\s*0006|DragonRise Inc\. Generic USB Joystick)/i
+      .test(pad.id || '');
+    const bindings = usesDragonRiseLayout ? DRAGONRISE_PAD_BINDINGS : this.b;
     const btn = (i) => buttons[i] && buttons[i].pressed;
     ACTIONS.forEach((a) => {
-      const list = this.b[a];
+      const list = bindings[a];
       if (list && list.some(btn)) state[a] = true;
     });
-    const dz = this.b.stickDeadzone;
+    const dz = bindings.stickDeadzone;
     let sx = 0;
     let sy = 0;
     if (Array.isArray(pad.axes) && pad.axes.length >= 2) {
@@ -86,15 +93,17 @@ class GamepadProvider {
     if (Math.abs(sx) > dz) state.axisX = sx;
     if (Math.abs(sy) > dz) state.axisY = sy;
 
-    // Compatibilidade Xbox/genérica: face, ombros e start independente do mapping customizado.
-    if (btn(0)) { state.jump = true; state.confirm = true; }
-    if (btn(1) || btn(8)) state.back = true;
-    if (btn(8) || btn(9)) state.pause = true;
-    if (btn(2) || btn(3) || btn(4) || btn(5) || btn(6) || btn(7)) state.dash = true;
-    if (btn(12)) state.up = true;
-    if (btn(13)) state.down = true;
-    if (btn(14)) state.left = true;
-    if (btn(15)) state.right = true;
+    if (!usesDragonRiseLayout) {
+      // Compatibilidade Xbox/genérica: face, ombros e start independente do mapping customizado.
+      if (btn(0)) { state.jump = true; state.confirm = true; }
+      if (btn(1) || btn(8)) state.back = true;
+      if (btn(8) || btn(9)) state.pause = true;
+      if (btn(2) || btn(3) || btn(4) || btn(5) || btn(6) || btn(7)) state.dash = true;
+      if (btn(12)) state.up = true;
+      if (btn(13)) state.down = true;
+      if (btn(14)) state.left = true;
+      if (btn(15)) state.right = true;
+    }
   }
 
   reset() {}

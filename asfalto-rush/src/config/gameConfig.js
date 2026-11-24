@@ -140,3 +140,11 @@ export const DEFAULT_PAD_BINDINGS = {
   right: [15],
   stickDeadzone: 0.25
 };
+
+// Ordem bruta do DragonRise 0079:0006: 0=Y/Triângulo, 1=B/Círculo,
+// 2=A/Cruz, 3=X/Quadrado. A confirmação fica apenas na cruz.
+export const DRAGONRISE_PAD_BINDINGS = {
+  ...DEFAULT_PAD_BINDINGS,
+  dash: [5, 7, 3],
+  confirm: [2]
+};

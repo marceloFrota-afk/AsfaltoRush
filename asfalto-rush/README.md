@@ -47,6 +47,7 @@ O `index.html` (e também o `dist/`) usa a cópia local primeiro e só recorre �
 | Confirmar / reiniciar | ENTER | A / ✕ |
 
 Em dispositivos com toque, aparecem botões virtuais (◀ ▶ PULO DASH II).
+No controle DragonRise USB `0079:0006`, a cruz confirma, o triângulo pula e o quadrado aciona o dash.
 
 ---
 
